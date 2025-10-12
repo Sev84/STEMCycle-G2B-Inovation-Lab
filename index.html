@@ -422,5 +422,814 @@
         }
 
 
-        // --- Firebase
+        // --- Firebase Başlatma ve Kimlik Doğrulama ---
+
+        async function initializeFirebase(isNewUser = false) {
+            if (!localStorage.getItem('user_name') || !localStorage.getItem('user_school')) {
+                authModalEl.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                if (!app) {
+                    app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    storage = getStorage(app);
+
+                    // Kimlik doğrulama
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                }
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        getLocationAndSetUserInfo(isNewUser); 
+                        setupRealtimeListeners();
+                    } else {
+                        console.error("Firebase kimlik doğrulama başarısız oldu.");
+                        authModalEl.classList.remove('hidden');
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase başlatma veya kimlik doğrulama hatası:", error);
+                showMessage(`Hata: Uygulama başlatılamadı. Kuralları kontrol edin. ${error.code}`, true);
+            }
+        }
+
+        function setupRealtimeListeners() {
+            // --- 1. Gruplar Dinleyicisi ---
+            const groupsCol = collection(db, `artifacts/${appId}/public/data/groups`);
+            const qGroups = query(groupsCol, where('members', 'array-contains', userId));
+            
+            userGroupsListener = onSnapshot(qGroups, async (snapshot) => {
+                userGroups = [];
+                const memberIdsToFetch = new Set(); 
+
+                snapshot.forEach(doc => {
+                    const groupData = { id: doc.id, ...doc.data() };
+                    userGroups.push(groupData);
+                    groupData.members.forEach(memberId => memberIdsToFetch.add(memberId));
+                });
+                
+                memberIdsToFetch.add(userId); 
+
+                // Tüm üyelerin meta verilerini asenkron olarak çek
+                const userPromises = Array.from(memberIdsToFetch).map(memberId => 
+                    fetchUserMetadata(memberId).then(metadata => ({ id: memberId, ...metadata }))
+                );
+                
+                const userMetadataResults = await Promise.all(userPromises);
+                userMetadataResults.forEach(user => {
+                    allGroups[user.id] = user; 
+                });
+
+                if (userGroups.length === 0) {
+                     groupsListEl.innerHTML = '<p class="text-gray-500 text-center py-8">Henüz katıldığınız bir grup yok. Lütfen yukarıdan yeni bir grup oluşturun.</p>';
+                } else {
+                    renderGroups(userGroups);
+                }
+                
+                updateGroupSelectors(userGroups);
+                updateGallerySelectors(userGroups);
+                updateLabSelectors(userGroups);
+
+            }, (error) => {
+                console.error("Grupları dinleme hatası:", error);
+                showMessage("Grup verileri yüklenirken hata oluştu.", true);
+            });
+            
+            // --- 2. Duyurular Dinleyicisi ---
+            announcementsListener = onSnapshot(collection(db, `artifacts/${appId}/public/data/announcements`), (snapshot) => {
+                const announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAnnouncements(announcements);
+            }, (error) => { console.error("Duyuruları dinleme hatası:", error); });
+
+            // --- 3. Panolar Dinleyicisi ---
+            projectPanelsListener = onSnapshot(collection(db, `artifacts/${appId}/public/data/panels`), (snapshot) => {
+                const panels = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderProjectGallery(panels);
+            }, (error) => { console.error("Panoları dinleme hatası:", error); });
+        }
+
+
+        // --- Grup Yönetimi Fonksiyonları ---
+
+        function renderGroups(groups) {
+            groupsListEl.innerHTML = '';
+            
+            if (groups.length === 0) {
+                groupsListEl.innerHTML = '<p class="text-gray-500 text-center py-8">Henüz katıldığınız bir grup yok. Lütfen yukarıdan yeni bir grup oluşturun.</p>';
+                return;
+            }
+
+            groups.forEach(group => {
+                const focus = group.economyFocus || 'Mavi'; 
+                const statusColorClass = group.stemCycleStatus === 'Tasarım' ? 'bg-yellow-500' : (focus === 'Yeşil' ? 'bg-green-600' : 'bg-blue-600');
+
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-xl shadow-md space-y-2 bg-white border-l-4 ${focus === 'Yeşil' ? 'border-green-500 green-border' : 'border-blue-500 blue-border'}`;
+                
+                const memberListHtml = group.members.map(memberId => {
+                    const metadata = allGroups[memberId] || { name: `ID:${memberId.substring(0, 8)}`, school: 'Bilinmiyor', lat: '?', lon: '?' };
+                    const isOwner = memberId === group.ownerId;
+                    const isCurrentUser = memberId === userId; 
+                    
+                    return `
+                        <li class="flex items-center text-sm text-gray-700">
+                            <span class="w-2 h-2 rounded-full ${isOwner ? 'bg-red-500' : 'bg-gray-400'} mr-2"></span>
+                            <span class="font-medium ${isOwner ? 'text-red-500' : ''} ${isCurrentUser ? 'font-bold text-accent-blue' : ''}">${metadata.name}</span> 
+                            <span class="text-gray-500 ml-1">(${metadata.school}, ${metadata.lat}/${metadata.lon})</span>
+                        </li>
+                    `;
+                }).join('');
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-lg font-semibold text-gray-800">${group.name}</h3>
+                        <div class="flex flex-col items-end space-y-1">
+                            <span class="text-xs font-medium px-2 py-1 rounded-full text-white ${statusColorClass}">
+                                Aşama: ${group.stemCycleStatus || 'Aşama Belirtilmemiş'}
+                            </span>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded text-white ${focus === 'Yeşil' ? 'bg-accent-green' : 'bg-accent-blue'}">
+                                Odak: ${focus} Ekonomi
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <h4 class="text-sm font-semibold text-gray-700 mt-3 border-t pt-2">Üyeler (${group.members.length}):</h4>
+                    <ul class="list-none space-y-1 pl-0">
+                        ${memberListHtml}
+                    </ul>
+
+                    <div class="flex space-x-2 pt-2 border-t mt-3">
+                        <button onclick="leaveGroup('${group.id}', '${group.name}')" class="text-xs text-red-600 hover:text-red-800 font-medium p-1 rounded-md border border-red-300 transition duration-150">
+                            Gruptan Ayrıl
+                        </button>
+                    </div>
+                `;
+                groupsListEl.appendChild(card);
+            });
+        }
+        
+        window.createGroup = async () => {
+            if (!db || !userId) return showMessage("Lütfen önce giriş yapın.", true);
+
+            const button = document.querySelector('#group-management-ui button');
+            setButtonLoading(button, true);
+
+            const name = document.getElementById('new-group-name').value.trim();
+            const focus = document.querySelector('input[name="economyFocus"]:checked').value;
+
+            if (!name) {
+                showMessage("Lütfen grup adını girin.", true);
+                setButtonLoading(button, false);
+                return;
+            }
+            
+            try {
+                const groupId = Date.now().toString(); // Basit ID oluşturma
+                const groupRef = doc(db, `artifacts/${appId}/public/data/groups`, groupId);
+                
+                await setDoc(groupRef, {
+                    name: name,
+                    ownerId: userId,
+                    economyFocus: focus,
+                    stemCycleStatus: "Başlangıç",
+                    members: [userId],
+                    createdAt: new Date().toISOString()
+                });
+
+                showMessage(`'${name}' grubu başarıyla oluşturuldu!`, false);
+                document.getElementById('new-group-name').value = '';
+                
+            } catch (error) {
+                console.error("Grup oluşturma hatası:", error);
+                showMessage("Grup oluşturulurken bir hata oluştu. Kuralları kontrol edin.", true);
+            }
+            setButtonLoading(button, false);
+        };
+        
+        window.leaveGroup = async (groupId, groupName) => {
+            if (!db || !userId) return showMessage("Lütfen önce giriş yapın.", true);
+            
+            if (confirm(`'${groupName}' grubundan ayrılmak istediğinize emin misiniz?`)) {
+                try {
+                    const groupRef = doc(db, `artifacts/${appId}/public/data/groups`, groupId);
+                    
+                    // Kendimizi üye listesinden çıkar
+                    await setDoc(groupRef, {
+                        members: arrayRemove(userId)
+                    }, { merge: true });
+                    
+                    showMessage(`'${groupName}' grubundan başarıyla ayrıldınız.`, false);
+                } catch (error) {
+                    console.error("Gruptan ayrılma hatası:", error);
+                    showMessage("Gruptan ayrılırken bir hata oluştu.", true);
+                }
+            }
+        };
+
+        // --- Dosya Fonksiyonları ---
+        
+        window.uploadFile = async () => {
+             if (!db || !userId) return showMessage("Lütfen önce giriş yapın.", true);
+
+            const button = document.querySelector('#file-upload-area button');
+            setButtonLoading(button, true);
+
+            const groupId = document.getElementById('group-select-files').value;
+            const description = document.getElementById('file-description').value.trim();
+            const uploadType = document.querySelector('input[name="uploadType"]:checked').value;
+            
+            if (!groupId) {
+                showMessage("Lütfen bir grup seçin.", true);
+                setButtonLoading(button, false);
+                return;
+            }
+
+            let fileUrl = '';
+            let fileName = '';
+            let mimeType = '';
+
+            try {
+                if (uploadType === 'url') {
+                    fileUrl = document.getElementById('url-input').value.trim();
+                    fileName = description || fileUrl;
+                    mimeType = 'link';
+                    if (!fileUrl) throw new Error("Lütfen geçerli bir link girin.");
+                } else {
+                    const file = document.getElementById('file-input').files[0];
+                    if (!file) throw new Error("Lütfen bir dosya seçin.");
+                    
+                    const storageRef = ref(storage, `artifacts/${appId}/group_files/${groupId}/${Date.now()}-${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    fileUrl = await getDownloadURL(storageRef);
+                    fileName = file.name;
+                    mimeType = file.type;
+                }
+
+                const docRef = doc(collection(db, `artifacts/${appId}/public/data/files`));
+                await setDoc(docRef, {
+                    id: docRef.id,
+                    groupId: groupId,
+                    uploaderId: userId,
+                    uploaderName: userName,
+                    fileName: fileName,
+                    description: description,
+                    fileUrl: fileUrl,
+                    mimeType: mimeType,
+                    uploadedAt: new Date().toISOString()
+                });
+
+                showMessage("Dosya/Link başarıyla paylaşıldı!", false);
+                document.getElementById('file-description').value = '';
+                document.getElementById('url-input').value = '';
+                document.getElementById('file-input').value = '';
+
+            } catch (error) {
+                console.error("Dosya yükleme hatası:", error);
+                showMessage(`Dosya yüklenirken hata oluştu: ${error.message}`, true);
+            }
+            setButtonLoading(button, false);
+        };
+
+        function displayGroupFiles(groupId) {
+            if (!db) return;
+            // Eski dinleyici varsa durdur
+            if (labDataListener[groupId]) labDataListener[groupId]();
+            
+            // Yeni dinleyiciyi başlat
+            const qFiles = query(collection(db, `artifacts/${appId}/public/data/files`), where('groupId', '==', groupId));
+            
+            labDataListener[groupId] = onSnapshot(qFiles, (snapshot) => {
+                const files = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderFiles(files);
+            }, (error) => { console.error("Dosya dinleme hatası:", error); });
+        }
+        
+        function renderFiles(files) {
+            const filesList = document.getElementById('group-files-list');
+            filesList.innerHTML = '';
+
+            if (files.length === 0) {
+                 filesList.innerHTML = '<p class="text-gray-500 text-center py-8">Seçili grupta henüz dosya/link paylaşılmamış.</p>';
+                 return;
+            }
+
+            files.forEach(file => {
+                const isLink = file.mimeType === 'link';
+                const fileIcon = isLink ? 
+                    '<svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.881a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>' :
+                    '<svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>';
+                
+                const card = document.createElement('div');
+                card.className = 'p-3 bg-white rounded-lg shadow-sm flex items-center justify-between';
+                card.innerHTML = `
+                    <div class="flex items-center">
+                        ${fileIcon}
+                        <div>
+                            <p class="font-medium text-gray-800 text-sm">${file.fileName}</p>
+                            <p class="text-xs text-gray-500 truncate max-w-xs">${file.description || file.mimeType}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <a href="${file.fileUrl}" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                            ${isLink ? 'Aç' : 'İndir'}
+                        </a>
+                        ${file.uploaderId === userId ? `<button onclick="deleteFile('${file.id}', '${isLink ? 'link' : 'file'}', '${file.fileUrl}')" class="text-xs text-red-500 hover:text-red-700">Sil</button>` : ''}
+                    </div>
+                `;
+                filesList.appendChild(card);
+            });
+        }
+
+        window.deleteFile = async (fileId, fileType, fileUrl) => {
+            if (!db) return showMessage("Lütfen önce giriş yapın.", true);
+            if (!confirm("Bu dosyayı kalıcı olarak silmek istediğinizden emin misiniz?")) return;
+
+            try {
+                // 1. Firestore kaydını sil
+                await deleteDoc(doc(db, `artifacts/${appId}/public/data/files`, fileId));
+
+                // 2. Eğer dosya ise, Storage'dan da sil
+                if (fileType === 'file' && fileUrl) {
+                    const storageRef = ref(storage, fileUrl);
+                    await deleteObject(storageRef).catch(error => {
+                        console.warn("Storage'dan silme hatası (Devam ediliyor):", error);
+                    });
+                }
+                
+                showMessage("Dosya başarıyla silindi.", false);
+            } catch (error) {
+                console.error("Dosya silme hatası:", error);
+                showMessage("Dosya silinirken bir hata oluştu.", true);
+            }
+        };
+        
+        // --- Duyuru Fonksiyonları ---
+        
+        window.publishAnnouncement = async () => {
+            if (!db || !userId) return showMessage("Lütfen önce giriş yapın.", true);
+            
+            const button = document.querySelector('#publish-announcement-ui button');
+            setButtonLoading(button, true);
+
+            const title = document.getElementById('announcement-title').value.trim();
+            const content = document.getElementById('announcement-content').value.trim();
+
+            if (!title || !content) {
+                showMessage("Lütfen başlık ve içerik girin.", true);
+                setButtonLoading(button, false);
+                return;
+            }
+
+            try {
+                const docRef = doc(collection(db, `artifacts/${appId}/public/data/announcements`));
+                await setDoc(docRef, {
+                    id: docRef.id,
+                    title: title,
+                    content: content,
+                    publisherId: userId,
+                    publisherName: userName,
+                    publishDate: new Date().toISOString(),
+                    timestamp: Date.now()
+                });
+                
+                showMessage("Duyuru başarıyla yayınlandı!", false);
+                document.getElementById('announcement-title').value = '';
+                document.getElementById('announcement-content').value = '';
+
+            } catch (error) {
+                console.error("Duyuru yayınlama hatası:", error);
+                showMessage("Duyuru yayınlanırken bir hata oluştu.", true);
+            }
+            setButtonLoading(button, false);
+        };
+
+        function renderAnnouncements(announcements) { 
+            const listEl = document.getElementById('announcements-list');
+            listEl.innerHTML = '';
+            
+            if (announcements.length === 0) {
+                 listEl.innerHTML = '<p class="text-gray-500 text-center py-8">Henüz yayınlanmış duyuru yok.</p>';
+                 return;
+            }
+            
+            // Tarihe göre ters sırala (en yeni üstte)
+            announcements.sort((a, b) => b.timestamp - a.timestamp);
+
+            const isOwner = userGroups.some(g => g.ownerId === userId);
+            if (isOwner) {
+                document.getElementById('publish-announcement-ui').classList.remove('hidden');
+            }
+
+            announcements.forEach(a => {
+                const dateStr = new Date(a.publishDate).toLocaleDateString('tr-TR');
+                const card = document.createElement('div');
+                card.className = 'announcement-card bg-white p-4 rounded-xl shadow-md space-y-1 border-l-4 border-orange-500';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-bold text-gray-800">${a.title}</h4>
+                        ${a.publisherId === userId ? `<button onclick="deleteAnnouncement('${a.id}', '${a.title}')" class="text-red-500 text-xs hover:text-red-700">Sil</button>` : ''}
+                    </div>
+                    <p class="text-sm text-gray-600">${a.content}</p>
+                    <div class="text-xs text-gray-400 pt-2 border-t mt-2">
+                        <span>Yayınlayan: ${a.publisherName}</span>
+                        <span class="float-right">Tarih: ${dateStr}</span>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+        
+        window.deleteAnnouncement = async (announcementId, title) => { 
+             if (!db) return showMessage("Lütfen önce giriş yapın.", true);
+             if (!confirm(`'${title}' başlıklı duyuruyu silmek istediğinizden emin misiniz?`)) return;
+
+             try {
+                await deleteDoc(doc(db, `artifacts/${appId}/public/data/announcements`, announcementId));
+                showMessage("Duyuru başarıyla silindi.", false);
+            } catch (error) {
+                console.error("Duyuru silme hatası:", error);
+                showMessage("Duyuru silinirken bir hata oluştu.", true);
+            }
+        };
+
+        // --- Pano Fonksiyonları ---
+
+        function loadPanelForGroup(groupId) {
+            if (!db) return;
+            const panelRef = doc(db, `artifacts/${appId}/public/data/panels`, groupId);
+            getDoc(panelRef).then(docSnap => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('panel-title').value = data.title || '';
+                    document.getElementById('panel-content').value = data.content || '';
+                    document.getElementById('panel-link').value = data.link || '';
+                } else {
+                    document.getElementById('panel-title').value = '';
+                    document.getElementById('panel-content').value = '';
+                    document.getElementById('panel-link').value = '';
+                }
+            }).catch(error => {
+                console.error("Pano yükleme hatası:", error);
+            });
+        }
+        
+        window.saveProjectPanel = async () => {
+             if (!db || !userId) return showMessage("Lütfen önce giriş yapın.", true);
+
+            const button = document.querySelector('#panel-editor-area button');
+            setButtonLoading(button, true);
+
+            const groupId = document.getElementById('group-select-panel').value;
+            const title = document.getElementById('panel-title').value.trim();
+            const content = document.getElementById('panel-content').value.trim();
+            const link = document.getElementById('panel-link').value.trim();
+            
+            if (!groupId || !title || !content) {
+                showMessage("Başlık ve içerik boş bırakılamaz.", true);
+                setButtonLoading(button, false);
+                return;
+            }
+            
+            const group = userGroups.find(g => g.id === groupId);
+            if (!group) {
+                 showMessage("Geçerli bir grup bulunamadı.", true);
+                 setButtonLoading(button, false);
+                 return;
+            }
+
+            try {
+                const panelRef = doc(db, `artifacts/${appId}/public/data/panels`, groupId);
+                await setDoc(panelRef, {
+                    id: groupId,
+                    groupId: groupId,
+                    groupName: group.name,
+                    focus: group.economyFocus,
+                    title: title,
+                    content: content,
+                    link: link,
+                    updatedBy: userName,
+                    updatedAt: new Date().toISOString()
+                });
+                showMessage("Proje panosu başarıyla kaydedildi!", false);
+            } catch (error) {
+                console.error("Pano kaydetme hatası:", error);
+                showMessage("Pano kaydedilirken bir hata oluştu.", true);
+            }
+            setButtonLoading(button, false);
+        };
+        
+        function renderProjectGallery(panels) {
+             const galleryEl = document.getElementById('project-gallery');
+             galleryEl.innerHTML = '';
+             
+             if (panels.length === 0) {
+                 galleryEl.innerHTML = '<p class="text-gray-500 text-center py-8">Henüz yayınlanmış proje panosu yok.</p>';
+                 return;
+             }
+
+             panels.forEach(p => {
+                 const focusColor = p.focus === 'Yeşil' ? 'border-accent-green' : 'border-accent-blue';
+                 const accentBg = p.focus === 'Yeşil' ? 'bg-accent-green' : 'bg-accent-blue';
+                 const card = document.createElement('div');
+                 card.className = `p-4 rounded-xl shadow-md bg-white border-l-4 ${focusColor} project-card`;
+                 card.innerHTML = `
+                     <div class="flex justify-between items-start">
+                         <h3 class="text-lg font-bold text-gray-800">${p.title}</h3>
+                         <span class="text-xs font-semibold px-2 py-0.5 rounded text-white ${accentBg}">
+                             ${p.focus} Ekonomi
+                         </span>
+                     </div>
+                     <p class="text-sm text-gray-600 mt-2">${p.content.substring(0, 300)}...</p>
+                     <div class="text-xs text-gray-500 pt-2 border-t mt-3 flex justify-between">
+                         <span>Ekip: ${p.groupName}</span>
+                         ${p.link ? `<a href="${p.link}" target="_blank" class="text-blue-500 hover:underline">Projeyi Görüntüle</a>` : ''}
+                     </div>
+                 `;
+                 galleryEl.appendChild(card);
+             });
+        }
+        
+        // --- LAB Fonksiyonları ---
+
+        window.calculateBlueContribution = async () => {
+             if (!db || !userId) return showMessage("Lütfen önce giriş yapın.", true);
+
+            const button = document.querySelector('#lab-input-area button');
+            setButtonLoading(button, true);
+
+            const groupId = document.getElementById('group-select-lab').value;
+            const name = document.getElementById('lab-name').value.trim();
+            const value = parseFloat(document.getElementById('lab-value').value);
+            const baseline = parseFloat(document.getElementById('lab-baseline').value);
+
+            if (!groupId || !name || isNaN(value) || isNaN(baseline) || baseline === 0) {
+                showMessage("Lütfen tüm LAB verilerini doğru girin (Temel tüketim sıfır olamaz).", true);
+                setButtonLoading(button, false);
+                return;
+            }
+            
+            const contribution = ((value / baseline) * 100).toFixed(0);
+
+            try {
+                const docRef = doc(collection(db, `artifacts/${appId}/public/data/lab_results`));
+                await setDoc(docRef, {
+                    id: docRef.id,
+                    groupId: groupId,
+                    labName: name,
+                    savedValue: value,
+                    baselineValue: baseline,
+                    contribution: parseFloat(contribution),
+                    updatedBy: userName,
+                    updatedAt: new Date().toISOString()
+                });
+                showMessage(`Katkı başarıyla kaydedildi: %${contribution}!`, false);
+                document.getElementById('lab-name').value = '';
+                document.getElementById('lab-value').value = '';
+                document.getElementById('lab-baseline').value = '';
+            } catch (error) {
+                console.error("LAB kaydetme hatası:", error);
+                showMessage("LAB verisi kaydedilirken hata oluştu.", true);
+            }
+            setButtonLoading(button, false);
+        };
+        
+        function renderContributionResults(records) {
+            const currentCard = document.getElementById('current-contribution-card');
+            const listEl = document.getElementById('lab-records-list');
+            listEl.innerHTML = '';
+            
+            if (records.length === 0) {
+                 currentCard.innerHTML = '<p class="text-gray-500 text-center py-4">Henüz LAB verisi girilmemiş.</p>';
+                 return;
+            }
+            
+            // En yüksek katkıyı bul
+            const maxContribution = Math.max(...records.map(r => r.contribution));
+            const totalAverage = (records.reduce((sum, r) => sum + r.contribution, 0) / records.length).toFixed(0);
+            
+            currentCard.innerHTML = `
+                 <p class="text-sm font-semibold text-gray-700">Ortalama Mavi Katkı:</p>
+                 <p class="text-3xl font-bold text-accent-blue text-center">%${totalAverage}</p>
+                 <p class="text-xs text-gray-500 mt-2">En Yüksek Kayıt: %${maxContribution}</p>
+            `;
+
+            records.sort((a, b) => b.contribution - a.contribution);
+
+            records.forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'p-3 bg-gray-50 rounded-lg shadow-sm';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="font-medium text-gray-800">${r.labName}</span>
+                        ${r.updatedBy === userName ? `<button onclick="deleteLabRecord('${r.id}')" class="text-xs text-red-500 hover:text-red-700">Sil</button>` : ''}
+                    </div>
+                    <p class="text-xs text-gray-600 mt-1">Tasarruf: ${r.savedValue}L / Baz: ${r.baselineValue}L</p>
+                    <div class="mt-1 flex items-center">
+                        <div class="w-full h-2 bg-gray-200 rounded-full mr-2">
+                            <div class="h-full bg-blue-500 rounded-full" style="width: ${r.contribution}%;"></div>
+                        </div>
+                        <span class="text-sm font-bold text-blue-600">%${r.contribution}</span>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        }
+        
+        window.deleteLabRecord = async (recordId) => { 
+            if (!db) return showMessage("Lütfen önce giriş yapın.", true);
+            if (!confirm(`Bu LAB kaydını silmek istediğinizden emin misiniz?`)) return;
+
+             try {
+                await deleteDoc(doc(db, `artifacts/${appId}/public/data/lab_results`, recordId));
+                showMessage("LAB kaydı başarıyla silindi.", false);
+            } catch (error) {
+                console.error("LAB kaydı silme hatası:", error);
+                showMessage("LAB kaydı silinirken bir hata oluştu.", true);
+            }
+        }
+        
+        function listenToLabData(groupId) {
+            if (!db) return;
+            // Eski dinleyici varsa durdur
+            if (labDataListener[groupId]) labDataListener[groupId]();
+            
+            // Yeni dinleyiciyi başlat
+            const qLab = query(collection(db, `artifacts/${appId}/public/data/lab_results`), where('groupId', '==', groupId));
+            
+            labDataListener[groupId] = onSnapshot(qLab, (snapshot) => {
+                const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderContributionResults(records);
+            }, (error) => { console.error("LAB dinleme hatası:", error); });
+        }
+
+
+        // --- Seçici Güncelleme Fonksiyonları ---
+
+        function updateGroupSelectors(groups) { 
+             const selectFiles = document.getElementById('group-select-files');
+             const selectPanel = document.getElementById('group-select-panel');
+             const selectLab = document.getElementById('group-select-lab');
+             
+             [selectFiles, selectPanel, selectLab].forEach(selectEl => {
+                 selectEl.innerHTML = '<option value="">-- Grup Seçin --</option>';
+                 groups.forEach(group => {
+                     const option = document.createElement('option');
+                     option.value = group.id;
+                     option.textContent = group.name;
+                     selectEl.appendChild(option);
+                 });
+             });
+            
+            selectFiles.onchange = () => { 
+                const groupId = selectFiles.value;
+                if (groupId) {
+                    document.getElementById('file-upload-area').classList.remove('hidden');
+                    displayGroupFiles(groupId);
+                } else {
+                    document.getElementById('file-upload-area').classList.add('hidden');
+                    document.getElementById('group-files-list').innerHTML = '<p class="text-gray-500 text-center py-8">Lütfen bir grup seçin.</p>';
+                }
+            };
+            selectPanel.onchange = () => { 
+                const groupId = selectPanel.value;
+                if (groupId) {
+                    document.getElementById('panel-editor-area').classList.remove('hidden');
+                    document.getElementById('no-panel-group-selected').classList.add('hidden');
+                    loadPanelForGroup(groupId);
+                } else {
+                    document.getElementById('panel-editor-area').classList.add('hidden');
+                    document.getElementById('no-panel-group-selected').classList.remove('hidden');
+                }
+            };
+            selectLab.onchange = () => { 
+                const groupId = selectLab.value;
+                 if (groupId) {
+                    document.getElementById('lab-input-area').classList.remove('hidden');
+                    document.getElementById('lab-no-data').classList.add('hidden');
+                    document.getElementById('current-contribution-card').classList.remove('hidden');
+                    listenToLabData(groupId);
+                } else {
+                    document.getElementById('lab-input-area').classList.add('hidden');
+                    document.getElementById('lab-no-data').classList.remove('hidden');
+                    document.getElementById('current-contribution-card').classList.add('hidden');
+                }
+            };
+        }
+
+        // --- Drag-and-Drop Fonksiyonları ---
+
+        function setupDragAndDrop() {
+            const modules = modulePaletteEl.querySelectorAll('.module');
+            modules.forEach(module => {
+                module.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        type: module.dataset.type,
+                        name: module.dataset.name,
+                        label: module.textContent.trim(),
+                        color: module.style.backgroundColor 
+                    }));
+                    module.classList.add('opacity-50');
+                });
+                module.addEventListener('dragend', (e) => {
+                    module.classList.remove('opacity-50');
+                });
+            });
+
+            kitCanvasEl.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                kitCanvasEl.style.backgroundColor = '#dbeafe'; 
+            });
+
+            kitCanvasEl.addEventListener('dragleave', (e) => {
+                kitCanvasEl.style.backgroundColor = '#e2e8f0'; 
+            });
+
+            kitCanvasEl.addEventListener('drop', (e) => {
+                e.preventDefault();
+                kitCanvasEl.style.backgroundColor = '#e2e8f0'; 
+                
+                try {
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                    
+                    const newModule = document.createElement('div');
+                    newModule.className = 'module absolute bg-white text-gray-700 p-2 rounded-lg shadow-xl text-xs font-semibold border-2 border-dashed border-accent-blue';
+                    newModule.textContent = data.label;
+                    newModule.dataset.name = data.name;
+                    
+                    const rect = kitCanvasEl.getBoundingClientRect();
+                    const x = e.clientX - rect.left - 50; // Basit offset
+                    const y = e.clientY - rect.top - 20;
+                    
+                    newModule.style.left = `${Math.max(0, Math.min(x, rect.width - 100))}px`;
+                    newModule.style.top = `${Math.max(0, Math.min(y, rect.height - 40))}px`;
+                    
+                    newModule.draggable = true;
+                    newModule.addEventListener('dragstart', (e) => {
+                         e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'move', id: newModule.dataset.name }));
+                    });
+                    
+                    kitCanvasEl.appendChild(newModule);
+                    updateModuleOutput();
+
+                    const placeholder = kitCanvasEl.querySelector('p');
+                    if (placeholder) placeholder.classList.add('hidden');
+                } catch (error) {
+                    showMessage("Geçersiz modül verisi.", true);
+                }
+            });
+        }
+        
+        window.clearKitCanvas = () => {
+             if (confirm("Emin misiniz? Sanal kit alanındaki tüm modüller silinecektir.")) {
+                kitCanvasEl.innerHTML = '<p class="text-center text-gray-500 pt-16">Modülleri Buraya Sürükleyin ve Bırakın</p>';
+                updateModuleOutput();
+             }
+        }
+        
+        function updateModuleOutput() {
+            const modules = kitCanvasEl.querySelectorAll('.module');
+            const moduleNames = Array.from(modules).map(m => m.textContent.trim());
+            
+            if (moduleNames.length > 0) {
+                moduleOutputEl.classList.remove('hidden');
+                moduleOutputEl.innerHTML = `
+                    **İnşa Edilen Kit (${moduleNames.length} Modül):** ${moduleNames.join(' -> ')}
+                `;
+            } else {
+                 moduleOutputEl.classList.add('hidden');
+            }
+        }
+        
+        window.changeTab = (tabName) => { 
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('tab-active'));
+            document.getElementById(`${tabName}-view`).classList.remove('hidden');
+            document.getElementById(`tab-${tabName}`).classList.add('tab-active');
+        }
+
+        // --- Uygulama Başlangıcı ---
+        
+        window.onload = () => {
+             // Kullanıcının ilk kez girip girmediğini kontrol et
+             if (!localStorage.getItem('user-name') || !localStorage.getItem('user-school')) {
+                authModalEl.classList.remove('hidden');
+             } else {
+                 // Var olan kullanıcıysa Firebase'i başlat
+                 initializeFirebase();
+             }
+             setupDragAndDrop();
+        };
+
+    </script>
+</body>
+</html>
 
