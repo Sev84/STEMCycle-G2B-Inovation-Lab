@@ -7,7 +7,7 @@
     <!-- Tailwind CSS Yüklemesi -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Inter Font Yüklemesi -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f9ff; }
         /* G2B (Green to Blue) Temasına Uygun Renkler */
@@ -269,19 +269,10 @@
         // Firestore loglarını etkinleştirme
         setLogLevel('Debug');
 
-        // Sabit Yapılandırma (API Anahtarı dahil)
-        const FIXED_FIREBASE_CONFIG = {
-          apiKey: "AIzaSyAshVa6zGftQmBQcjo_HRHoOP92vb3kKgQ",
-          authDomain: "stemcycle-g2b-innovation-efe5c.firebaseapp.com",
-          projectId: "stemcycle-g2b-innovation-efe5c",
-          storageBucket: "stemcycle-g2b-innovation-efe5c.firebasestorage.app",
-          messagingSenderId: "79339752913",
-          appId: "1:79339752913:web:5379abf2794791b7bda4f0",
-          measurementId: "G-V0JFVJ2TMC"
-        };
-        
-        // Uygulama ID'si, Storage ve Firestore kurallarında kullanılan sabit değer
-        const appId = FIXED_FIREBASE_CONFIG.projectId; 
+        // Sabit Yapılandırma (Canvas ortamında bu değişkenler otomatik sağlanır, manuel ekleme kaldırıldı)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         let app, db, auth, storage;
         let userId = null;
@@ -438,38 +429,48 @@
 
             try {
                 if (!app) {
-                    // Sabit yapılandırma ile başlat
-                    app = initializeApp(FIXED_FIREBASE_CONFIG); 
+                    // Canvas ortamından gelen değişkenleri kullan
+                    app = initializeApp(firebaseConfig); 
                     db = getFirestore(app);
                     auth = getAuth(app);
                     storage = getStorage(app);
                 }
 
-                // Kimlik doğrulama akışı: Sadece Anonim Giriş kullanılır (En sağlam yöntem)
+                // Kimlik doğrulama akışı (Canvas ortamına uygun)
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
                         getLocationAndSetUserInfo(isNewUser); 
                         setupRealtimeListeners();
                     } else {
-                        // Eğer oturum yoksa veya düştüyse anonim giriş dene
+                        // Anonim Giriş veya Token Girişi
                         try {
-                             await signInAnonymously(auth);
+                             if (initialAuthToken) {
+                                await signInWithCustomToken(auth, initialAuthToken);
+                             } else {
+                                await signInAnonymously(auth);
+                             }
                         } catch (authError) {
                             console.error("Auth başarısız:", authError);
-                            showMessage(`Hata: Uygulama başlatılamadı. Kuralları ve konsolu kontrol edin.`, true);
+                            showMessage(`Hata: Uygulama başlatılamadı. Canvas ayarlarını kontrol edin.`, true);
                         }
                     }
                 });
                 
-                // İlk girişi tetikle
+                // Başlangıç kimlik doğrulamasını tetikle
                 if (auth.currentUser === null) {
-                    await signInAnonymously(auth);
+                    if (initialAuthToken) {
+                         await signInWithCustomToken(auth, initialAuthToken).catch(async () => {
+                             await signInAnonymously(auth);
+                        });
+                    } else {
+                        await signInAnonymously(auth);
+                    }
                 }
 
             } catch (error) {
                 console.error("Firebase başlatma hatası:", error);
-                showMessage(`Hata: Uygulama başlatılamadı. Yapılandırma veya kuralları kontrol edin.`, true);
+                showMessage(`Hata: Uygulama başlatılamadı. Canvas Yapılandırmasını kontrol edin.`, true);
             }
         }
 
