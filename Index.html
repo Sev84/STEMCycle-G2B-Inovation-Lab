@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STEMCycle Hub: Mavi Ekonomi İnovasyon Merkezi</title>
+    <!-- Tailwind CSS Yüklemesi -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font Yüklemesi -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f9ff; }
+        /* G2B (Green to Blue) Temasına Uygun Renkler */
+        .header-blue { background-color: #0c4a6e; } /* Derin Mavi */
+        .accent-blue { background-color: #0c4a6e; } /* Mavi Vurgu */
+        .accent-green { background-color: #10b981; } /* Yeşil Vurgu */
+        .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; font-weight: 600; }
+        .container-fluid { max-width: 100vw; overflow-x: hidden; }
+        .announcement-card { border-left: 4px solid #f97316; }
+        .project-card { border-top: 5px solid #0c4a6e; }
+        .blue-border { border-left-color: #0c4a6e; }
+        .green-border { border-left-color: #10b981; }
+        .lab-accent { background-color: #f97316; } /* Laboratuvar için Turuncu */
+        
+        /* Drag-and-Drop Modülleri */
+        .module {
+            cursor: grab;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+        .module:active { cursor: grabbing; }
+        #kit-canvas { 
+            min-height: 250px; 
+            background-color: #e2e8f0; 
+            border: 2px dashed #94a3b8;
+            position: relative;
+        }
+    </style>
+</head>
+<body class="container-fluid min-h-screen">
+
+    <!-- Ana Uygulama Alanı -->
+    <div id="app" class="flex flex-col min-h-screen">
+        
+        <!-- Hesap Oluşturma/Giriş Modalı -->
+        <div id="auth-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
+                <h2 class="text-xl font-bold mb-4 text-center text-accent-blue">Giriş Yap / Hesap Oluştur</h2>
+                <p class="text-sm text-gray-600 mb-4 text-center">Uluslararası ekiplerin sizi görmesi için bilgilerinizi girin.</p>
+                <input type="text" id="user-name-input" placeholder="Adınız, Soyadınız" class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:ring-accent-blue focus:border-accent-blue">
+                <input type="text" id="user-school-input" placeholder="Okulunuz / Ülkeniz" class="w-full p-2 border border-gray-300 rounded-lg mb-4 focus:ring-accent-blue focus:border-accent-blue">
+                <button onclick="registerUser()" class="w-full accent-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-150">
+                    Projeye Katıl
+                </button>
+            </div>
+        </div>
+
+        <!-- Başlık ve Kullanıcı Bilgisi -->
+        <header class="header-blue text-white p-4 shadow-lg sticky top-0 z-10">
+            <div class="flex justify-between items-center">
+                <h1 class="text-xl sm:text-2xl font-bold flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-accent-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9h-9m-9 0a9 9 0 019-9m-9 9h6m-9 9a9 9 0 019-9m-9 9a9 9 0 009 9m9-9a9 9 0 01-9 9m9-9h-9m-9 0a9 9 0 019-9m-9 9h6"></path></svg>
+                    STEMCycle Hub
+                </h1>
+                <div class="text-sm">
+                    <p id="user-info" class="font-semibold text-right truncate"></p>
+                    <p id="user-location" class="text-xs opacity-70 truncate"></p>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sekmeler -->
+        <nav class="bg-white shadow-md p-2 flex justify-around text-gray-600 sticky top-[68px] sm:top-[68px] z-10 overflow-x-auto whitespace-nowrap">
+            <button id="tab-groups" onclick="changeTab('groups')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0 tab-active">Gruplar</button>
+            <button id="tab-files" onclick="changeTab('files')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0">Dosyalar</button>
+            <button id="tab-announcements" onclick="changeTab('announcements')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0">Duyurular</button>
+            <button id="tab-gallery" onclick="changeTab('gallery')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0">Panolar</button>
+            <button id="tab-lab" onclick="changeTab('lab')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0">LAB Veri</button>
+            <button id="tab-module" onclick="changeTab('module')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0">
+                <svg class="w-5 h-5 inline-block sm:mr-1 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM19 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM7 20h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z"></path></svg>
+                Modül
+            </button>
+        </nav>
+
+        <!-- Ana İçerik Alanı -->
+        <main class="flex-grow p-4 space-y-6">
+
+            <!-- 1. Grup Yönetimi ve Projeler Sekmesi -->
+            <section id="groups-view" class="tab-content">
+                <div id="group-management-ui" class="bg-white p-4 rounded-xl shadow-lg mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2">
+                        <span class="w-2 h-2 rounded-full bg-accent-blue mr-2"></span>
+                        Grup Oluştur / Katıl
+                    </h2>
+                    <input type="text" id="new-group-name" placeholder="Yeni Grup Adı (Mavi Ekonomi Projesi Adı)" class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:ring-accent-blue focus:border-accent-blue">
+                    
+                    <!-- Ekonomi Odak Seçimi -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Proje Odak Noktası:</label>
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="economyFocus" value="Mavi" checked class="form-radio text-accent-blue focus:ring-accent-blue" id="focus-blue">
+                                <span class="ml-2 font-medium text-accent-blue">Mavi Ekonomi</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="economyFocus" value="Yeşil" class="form-radio text-accent-green focus:ring-accent-green" id="focus-green">
+                                <span class="ml-2 font-medium text-accent-green">Yeşil Ekonomi</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button onclick="createGroup()" class="w-full accent-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-150" data-original-text="<svg class='w-5 h-5 inline-block mr-2' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4'></path></svg>Grup Oluştur">
+                        <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4'></path></svg>
+                        Grup Oluştur
+                    </button>
+                </div>
+                
+                <!-- Grupların Listelendiği Alan -->
+                <div id="user-groups-list" class="space-y-4">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2">
+                        <span class="w-2 h-2 rounded-full bg-accent-blue mr-2"></span>
+                        Katıldığınız Gruplar
+                    </h2>
+                    <p id="loading-groups" class="text-gray-500 text-center py-8">Gruplar yükleniyor... Lütfen bekleyin.</p>
+                    <!-- Grup Kartları Buraya Eklenecek -->
+                </div>
+            </section>
+            
+            <!-- 2. Dosya Yükleme ve Görüntüleme Sekmesi -->
+            <section id="files-view" class="tab-content hidden">
+                <div class="bg-white p-4 rounded-xl shadow-lg border-l-4 border-gray-400">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">Dosya ve Link Paylaşımı</h2>
+                    <p class="text-sm text-gray-600 mb-4">Lütfen dosya paylaşmak istediğiniz grubu seçin.</p>
+                    <select id="group-select-files" class="w-full p-2 border rounded-lg mb-4"></select>
+                    <div id="file-upload-area" class="hidden">
+                         <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Paylaşım Türü:</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center"><input type="radio" name="uploadType" value="file" onclick="toggleFileInput('file')" checked class="form-radio text-accent-blue focus:ring-accent-blue"><span class="ml-2">Dosya Yükle</span></label>
+                                <label class="inline-flex items-center"><input type="radio" name="uploadType" value="url" onclick="toggleFileInput('url')" class="form-radio text-accent-blue focus:ring-accent-blue"><span class="ml-2">Link Ekle</span></label>
+                            </div>
+                        </div>
+                        <input type="file" id="file-input" class="w-full p-2 border border-gray-300 rounded-lg mb-3">
+                        <input type="url" id="url-input" placeholder="http://tinkercad.com/proje-linki" class="w-full p-2 border border-gray-300 rounded-lg mb-3 hidden">
+                        <input type="text" id="file-description" placeholder="Açıklama (Örn: Su Analizi Raporu)" class="w-full p-2 border border-gray-300 rounded-lg mb-3">
+                        <button onclick="uploadFile()" class="w-full accent-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-150">Dosya/Link Yükle</button>
+                    </div>
+                </div>
+                <div id="group-files-list" class="mt-6 space-y-4">
+                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2">Seçili Grubun Dosyaları</h3>
+                    <p id="no-files-message" class="text-gray-500 text-center py-8">Lütfen bir grup seçin veya seçili grupta dosya bulunmamaktadır.</p>
+                </div>
+            </section>
+
+            <!-- 3. Duyurular ve Kaynaklar Sekmesi -->
+            <section id="announcements-view" class="tab-content hidden">
+                <div id="publish-announcement-ui" class="bg-white p-4 rounded-xl shadow-lg mb-6 border-l-4 border-orange-500 hidden">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Yeni Duyuru Yayınla</h2>
+                    <input type="text" id="announcement-title" placeholder="Duyuru Başlığı" class="w-full p-2 border rounded-lg mb-3">
+                    <textarea id="announcement-content" placeholder="Duyuru Metni (Örn: Yarınki toplantı linki)" rows="3" class="w-full p-2 border rounded-lg mb-3"></textarea>
+                    <button onclick="publishAnnouncement()" class="w-full lab-accent text-white py-2 rounded-lg font-semibold hover:bg-orange-600">Yayınla</button>
+                </div>
+                <div id="announcements-list" class="space-y-4">
+                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2">Tüm Proje Duyuruları</h3>
+                    <p class="text-gray-500 text-center py-8">Duyurular yükleniyor...</p>
+                </div>
+            </section>
+
+             <!-- 4. STEMCycle Dijital Sergi Panosu (Innovation Gallery) Sekmesi -->
+            <section id="gallery-view" class="tab-content hidden">
+                <div class="bg-white p-4 rounded-xl shadow-lg border-l-4 border-teal-500">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Grup Proje Panosu (İnşa Et)</h2>
+                    <select id="group-select-panel" class="w-full p-2 border rounded-lg mb-4"></select>
+                    <div id="panel-editor-area" class="hidden">
+                        <input type="text" id="panel-title" placeholder="Pano Başlığı (Örn: Akıllı Su Yönetimi Girişimi)" class="w-full p-2 border rounded-lg mb-3">
+                        <textarea id="panel-content" placeholder="Su Analizi Okuryazarlığı ve Yeşil/Mavi Ekonomi Bağlantısını Buraya Yazın..." rows="5" class="w-full p-2 border rounded-lg mb-3"></textarea>
+                        <input type="url" id="panel-link" placeholder="Tinkercad veya Sunum Linki" class="w-full p-2 border rounded-lg mb-3">
+                        <button onclick="saveProjectPanel()" class="w-full accent-green text-white py-2 rounded-lg font-semibold hover:bg-green-600">Panoyu Kaydet/Güncelle</button>
+                    </div>
+                    <p id="no-panel-group-selected" class="text-gray-500 text-center py-4">Lütfen pano inşa etmek için bir grup seçin.</p>
+                </div>
+                <div id="project-gallery" class="mt-6 space-y-4">
+                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2">Green to Blue İnovasyon Galerisi</h3>
+                    <p class="text-gray-500 text-center py-8">Panolar yükleniyor...</p>
+                </div>
+            </section>
+
+            <!-- 5. STEMCycle Simülasyon Laboratuvarı Sekmesi -->
+            <section id="lab-view" class="tab-content hidden">
+                <div class="bg-white p-4 rounded-xl shadow-lg border-l-4 lab-accent">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">LAB Sonuçları: Mavi Ekonomiye Katkı Takibi</h2>
+                    <p class="text-sm text-gray-600 mb-4">Sanal deney/simülasyon sonuçlarını girerek Mavi Ekonomi etkinizi takip edin.</p>
+                    <select id="group-select-lab" class="w-full p-2 border rounded-lg mb-4"></select>
+                    <div id="lab-input-area" class="hidden">
+                        <input type="text" id="lab-name" placeholder="Deney Adı (Örn: Gri Su Geri Dönüşüm Simülasyonu)" class="w-full p-2 border rounded-lg mb-3">
+                        <input type="number" id="lab-value" placeholder="Tasarruf Edilen Su (Litre/Ay)" class="w-full p-2 border rounded-lg mb-3">
+                        <input type="number" id="lab-baseline" placeholder="Temel Tüketim (Litre/Ay, Örn: 1000)" class="w-full p-2 border rounded-lg mb-3">
+                        <button onclick="calculateBlueContribution()" class="w-full lab-accent text-white py-2 rounded-lg font-semibold hover:bg-orange-600">Katkıyı Hesapla ve Kaydet</button>
+                    </div>
+                    <p id="lab-no-data" class="text-gray-500 text-center py-4">Lütfen LAB verisi girmek için bir grup seçin.</p>
+                </div>
+
+                <div id="contribution-results" class="mt-6 space-y-4">
+                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2">Grup Katkı Puanı</h3>
+                    <div id="current-contribution-card" class="p-4 bg-white rounded-xl shadow-md hidden">
+                         <p class="text-gray-500 text-center py-4">Henüz veri girilmedi.</p>
+                    </div>
+                    <div id="lab-records-list" class="space-y-3">
+                       <p class="text-gray-500 text-center py-4">Tüm LAB kayıtları burada listelenecek.</p>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- 6. Sanal Modül Geliştirme (Drag & Drop) Sekmesi -->
+            <section id="module-view" class="tab-content hidden">
+                <div class="bg-white p-4 rounded-xl shadow-lg mb-6 border-l-4 border-orange-500">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2">
+                        <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM19 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM7 20h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z"></path></svg>
+                        Sanal Modül Geliştirme (Drag & Drop Kit)
+                    </h2>
+                    
+                    <p class="text-sm text-gray-600 mb-4">Aşağıdaki modülleri sürükleyip, alttaki Sanal Kit Alanına bırakarak deney düzeneklerinizi inşa edin.</p>
+                    
+                    <div id="module-palette" class="flex flex-wrap gap-3 p-3 bg-gray-100 rounded-lg mb-4">
+                        <!-- Sürükle-Bırak Modülleri -->
+                        <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="sensor" data-name="pH_Sensor">pH Sensör</div>
+                        <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="actuator" data-name="Pump">Su Pompası</div>
+                        <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="input" data-name="Rain_Collector">Yağmur Toplayıcı</div>
+                        <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="control" data-name="Microcontroller">Kontrolcü (IoT)</div>
+                        <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="storage" data-name="Greywater_Tank">Gri Su Tankı</div>
+                    </div>
+
+                    <h3 class="text-md font-semibold text-gray-700 mb-2">Sanal Kit İnşa Alanı</h3>
+                    <div id="kit-canvas" class="rounded-lg shadow-inner relative">
+                        <p class="text-center text-gray-500 pt-16">Modülleri Buraya Sürükleyin ve Bırakın</p>
+                    </div>
+
+                    <button onclick="clearKitCanvas()" class="w-full mt-4 bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition duration-150">
+                        Kanvası Temizle
+                    </button>
+                    
+                    <p id="module-output" class="text-sm text-gray-600 mt-4 p-2 bg-yellow-100 rounded hidden">
+                        **İnşa Edilen Kit:**
+                    </p>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Alt Bilgilendirme Metni -->
+        <footer class="bg-gray-100 p-3 text-xs text-gray-600 text-center mt-auto">
+            <p><strong>Proje Açıklaması:</strong> Bu platform, Karasal Sistemlerde Suya Dayalı Çözümlerin (Yeşil Ekonomi) Mavi Ekonomiye Etkisini, Su Analizi Okuryazarlığı ile ilişkilendirerek göstermeyi amaçlar.</p>
+            <p class="mt-1">STEMCycle G2B – Green to Blue Innovation Lab | Copyright &copy; 2025</p>
+        </footer>
+    </div>
+
+    <!-- Hata ve Bilgilendirme Kutusu (Modal yerine) -->
+    <div id="message-box" class="fixed bottom-4 right-4 bg-red-500 text-white p-3 rounded-lg shadow-xl hidden transition-opacity duration-300 opacity-0 z-50">
+        Mesajınız buraya gelecek.
+    </div>
+
+    <!-- Firebase SDK'ları -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, where, arrayUnion, arrayRemove, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Firestore loglarını etkinleştirme
+        setLogLevel('Debug');
+
+        // Global Değişkenler
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let app, db, auth, storage;
+        let userId = null;
+        let userName = '';
+        let userSchool = '';
+        let userLat = null;
+        let userLon = null;
+        let userGroups = []; 
+        let allGroups = {};
+        
+        // UI Elemanları
+        const authModalEl = document.getElementById('auth-modal');
+        const userInfoEl = document.getElementById('user-info');
+        const userLocationEl = document.getElementById('user-location');
+        const groupsListEl = document.getElementById('user-groups-list');
+        
+        // Drag-and-Drop
+        const kitCanvasEl = document.getElementById('kit-canvas');
+        const modulePaletteEl = document.getElementById('module-palette');
+        const moduleOutputEl = document.getElementById('module-output');
+
+        // Dinleyici Referansları
+        let userGroupsListener = null;
+        let allGroupsListener = null;
+        let announcementsListener = null;
+        let projectPanelsListener = null;
+        let labDataListener = {}; // Grup bazlı dinleyiciler için
+
+
+        // --- Yardımcı Fonksiyonlar ---
+
+        function showMessage(message, isError = false) {
+             const box = document.getElementById('message-box');
+            box.textContent = message;
+            box.classList.remove('bg-red-500', 'bg-green-500', 'hidden', 'opacity-0');
+            box.classList.add(isError ? 'bg-red-500' : 'bg-green-500', 'opacity-100');
+            setTimeout(() => {
+                box.classList.remove('opacity-100');
+                box.classList.add('opacity-0');
+                setTimeout(() => { box.classList.add('hidden'); }, 300);
+            }, 3000);
+        }
+
+        function setButtonLoading(button, isLoading) {
+            button.disabled = isLoading;
+            const originalText = button.getAttribute('data-original-text');
+            if (isLoading) {
+                 button.setAttribute('data-original-text', button.innerHTML);
+                 button.innerHTML = '<svg class="animate-spin h-5 w-5 mr-3 inline-block" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> İşleniyor...';
+            } else {
+                 button.innerHTML = originalText;
+                 button.removeAttribute('data-original-text');
+            }
+        }
+        
+        // --- Konum ve Kullanıcı Bilgisi Yönetimi ---
+        
+        /** Kullanıcının adını, okulunu ve konumunu kaydeder. */
+        window.registerUser = async () => {
+            const button = document.querySelector('#auth-modal button');
+            setButtonLoading(button, true);
+
+            const name = document.getElementById('user-name-input').value.trim();
+            const school = document.getElementById('user-school-input').value.trim();
+
+            if (!name || !school) {
+                showMessage("Lütfen adınızı/soyadınızı ve okulunuzu/ülkenizi girin.", true);
+                setButtonLoading(button, false);
+                return;
+            }
+            
+            // Kullanıcı bilgilerini yerel olarak sakla
+            localStorage.setItem('user_name', name);
+            localStorage.setItem('user_school', school);
+            
+            // Firebase sürecini başlat
+            await initializeFirebase(true); 
+            setButtonLoading(button, false);
+        }
+
+        /** Konum bilgisini alır ve UI'ı günceller. */
+        function getLocationAndSetUserInfo(isNewUser) {
+            // Kullanıcının adını local storage'dan çek
+            userName = localStorage.getItem('user_name');
+            userSchool = localStorage.getItem('user_school');
+            
+            if (!userName || !userSchool) {
+                 if (!isNewUser) authModalEl.classList.remove('hidden');
+                 return;
+            }
+
+            userInfoEl.textContent = `${userName} (${userSchool})`;
+            
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    userLat = position.coords.latitude.toFixed(2);
+                    userLon = position.coords.longitude.toFixed(2);
+                    userLocationEl.textContent = `Konum: ${userLat}, ${userLon}`;
+                    updateUserMetadata(); 
+                }, (error) => {
+                    userLocationEl.textContent = 'Konum: Paylaşılmadı (0.00, 0.00)';
+                    userLat = 0.00; 
+                    userLon = 0.00;
+                    updateUserMetadata(); 
+                }, { enableHighAccuracy: false, timeout: 5000, maximumAge: 0 });
+            } else {
+                userLocationEl.textContent = 'Konum: Desteklenmiyor (0.00, 0.00)';
+                userLat = 0.00;
+                userLon = 0.00;
+                updateUserMetadata(); 
+            }
+            
+            // Modal'ı kapat (Giriş başarılı)
+            authModalEl.classList.add('hidden');
+        }
+
+        /** Kullanıcı meta verisini Firestore'da günceller. */
+        async function updateUserMetadata() {
+            if (!userId || !db) return;
+            try {
+                const userRef = doc(db, `artifacts/${appId}/public/data/user_metadata`, userId);
+                await setDoc(userRef, {
+                    name: userName,
+                    school: userSchool,
+                    lat: userLat,
+                    lon: userLon,
+                    lastLogin: new Date().toISOString()
+                }, { merge: true });
+            } catch (error) {
+                console.error("Kullanıcı meta verisi güncellenemedi:", error);
+                showMessage("Hata: Kullanıcı bilgileri sunucuya kaydedilemedi.", true);
+            }
+        }
+
+        /** Grup üyelerinin isim ve konum bilgilerini alır. */
+        async function fetchUserMetadata(id) {
+            if (!db) return;
+            try {
+                const docSnap = await getDoc(doc(db, `artifacts/${appId}/public/data/user_metadata`, id));
+                if (docSnap.exists()) {
+                    return docSnap.data();
+                }
+            } catch (error) {
+                console.warn(`Meta veri çekme hatası (ID: ${id}):`, error.message);
+            }
+            return { name: `ID:${id.substring(0, 8)}`, school: 'Bilinmiyor', lat: '?', lon: '?' };
+        }
+
+
+        // --- Firebase
+
