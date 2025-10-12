@@ -269,10 +269,15 @@
         // Firestore loglarını etkinleştirme
         setLogLevel('Debug');
 
-        // Canvas Ortam Değişkenleri
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // Sabit Tanımlar (Canvas değişkenleri yok sayılıyor, sadece manuel ayarlar kullanılıyor)
+        const projectId = "stemcycle-g2b-innovation-efe5c"; // Sizin sabit proje ID'niz
+        const apiKey = "AIzaSyAshVa6zGftQmBQcjo_HRHoOP92vb3kKgQ"; // Sizin sabit API Anahtarınız
+        const authDomain = "stemcycle-g2b-innovation-efe5c.firebaseapp.com";
+        const storageBucket = "stemcycle-g2b-innovation-efe5c.firebasestorage.app";
+
+        const appId = projectId; 
+        const firebaseConfig = { apiKey, authDomain, projectId, storageBucket, appId: "1:79339752913:web:5379abf2794791b7bda4f0" };
+        const initialAuthToken = null; // GitHub'da bu her zaman null'dur.
         
         let app, db, auth, storage;
         let userId = null;
@@ -390,7 +395,8 @@
         async function updateUserMetadata() {
             if (!userId || !db) return;
             try {
-                const userRef = doc(db, `artifacts/${appId}/public/data/user_metadata`, userId);
+                // Burada appId yerine sabit projectId kullanıyoruz (GitHub uyumu için)
+                const userRef = doc(db, `artifacts/${projectId}/public/data/user_metadata`, userId);
                 await setDoc(userRef, {
                     name: userName,
                     school: userSchool,
@@ -408,7 +414,7 @@
         async function fetchUserMetadata(id) {
             if (!db) return;
             try {
-                const docSnap = await getDoc(doc(db, `artifacts/${appId}/public/data/user_metadata`, id));
+                const docSnap = await getDoc(doc(db, `artifacts/${projectId}/public/data/user_metadata`, id));
                 if (docSnap.exists()) {
                     return docSnap.data();
                 }
@@ -422,6 +428,7 @@
         // --- Firebase Başlatma ve Kimlik Doğrulama ---
 
         async function initializeFirebase(isNewUser = false) {
+            // Önbellek kontrolü
             if (!localStorage.getItem('user_name') || !localStorage.getItem('user_school')) {
                 authModalEl.classList.remove('hidden');
                 return;
@@ -429,54 +436,39 @@
 
             try {
                 if (!app) {
-                    // Canvas ortamından gelen değişkenleri kullan
+                    // Sabit config ile başlatma (GitHub ve Çakışma Önleyici)
                     app = initializeApp(firebaseConfig); 
                     db = getFirestore(app);
                     auth = getAuth(app);
                     storage = getStorage(app);
                 }
 
-                // Kimlik doğrulama akışı (Canvas ortamına uygun)
+                // Kimlik doğrulama akışı (SADECE ANONİM GİRİŞ)
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
                         getLocationAndSetUserInfo(isNewUser); 
                         setupRealtimeListeners();
                     } else {
-                        // Anonim Giriş veya Token Girişi
-                        try {
-                             if (initialAuthToken) {
-                                await signInWithCustomToken(auth, initialAuthToken);
-                             } else {
-                                await signInAnonymously(auth);
-                             }
-                        } catch (authError) {
-                            console.error("Auth başarısız:", authError);
-                            showMessage(`Hata: Uygulama başlatılamadı. Canvas ayarlarını kontrol edin.`, true);
-                        }
+                        // Eğer kullanıcı yoksa, anonim girişi zorla (GitHub için en sağlam yöntem)
+                        await signInAnonymously(auth);
                     }
                 });
                 
                 // Başlangıç kimlik doğrulamasını tetikle
                 if (auth.currentUser === null) {
-                    if (initialAuthToken) {
-                         await signInWithCustomToken(auth, initialAuthToken).catch(async () => {
-                             await signInAnonymously(auth);
-                        });
-                    } else {
-                        await signInAnonymously(auth);
-                    }
+                    await signInAnonymously(auth);
                 }
 
             } catch (error) {
                 console.error("Firebase başlatma hatası:", error);
-                showMessage(`Hata: Uygulama başlatılamadı. Canvas Yapılandırmasını kontrol edin.`, true);
+                showMessage(`HATA: Uygulama başlatılamadı. Firebase Yapılandırmasını/Kurallarını kontrol edin.`, true);
             }
         }
 
         function setupRealtimeListeners() {
             // --- 1. Gruplar Dinleyicisi ---
-            const groupsCol = collection(db, `artifacts/${appId}/public/data/groups`);
+            const groupsCol = collection(db, `artifacts/${projectId}/public/data/groups`);
             const qGroups = query(groupsCol, where('members', 'array-contains', userId));
             
             userGroupsListener = onSnapshot(qGroups, async (snapshot) => {
@@ -517,13 +509,13 @@
             });
             
             // --- 2. Duyurular Dinleyicisi ---
-            announcementsListener = onSnapshot(collection(db, `artifacts/${appId}/public/data/announcements`), (snapshot) => {
+            announcementsListener = onSnapshot(collection(db, `artifacts/${projectId}/public/data/announcements`), (snapshot) => {
                 const announcements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderAnnouncements(announcements);
             }, (error) => { console.error("Duyuruları dinleme hatası:", error); });
 
             // --- 3. Panolar Dinleyicisi ---
-            projectPanelsListener = onSnapshot(collection(db, `artifacts/${appId}/public/data/panels`), (snapshot) => {
+            projectPanelsListener = onSnapshot(collection(db, `artifacts/${projectId}/public/data/panels`), (snapshot) => {
                 const panels = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderProjectGallery(panels);
             }, (error) => { console.error("Panoları dinleme hatası:", error); });
@@ -606,7 +598,7 @@
             
             try {
                 const groupId = Date.now().toString(); // Basit ID oluşturma
-                const groupRef = doc(db, `artifacts/${appId}/public/data/groups`, groupId);
+                const groupRef = doc(db, `artifacts/${projectId}/public/data/groups`, groupId);
                 
                 await setDoc(groupRef, {
                     name: name,
@@ -632,7 +624,7 @@
             
             if (confirm(`'${groupName}' grubundan ayrılmak istediğinize emin misiniz?`)) {
                 try {
-                    const groupRef = doc(db, `artifacts/${appId}/public/data/groups`, groupId);
+                    const groupRef = doc(db, `artifacts/${projectId}/public/data/groups`, groupId);
                     
                     // Kendimizi üye listesinden çıkar
                     await setDoc(groupRef, {
@@ -679,14 +671,14 @@
                     const file = document.getElementById('file-input').files[0];
                     if (!file) throw new Error("Lütfen bir dosya seçin.");
                     
-                    const storageRef = ref(storage, `artifacts/${appId}/group_files/${groupId}/${Date.now()}-${file.name}`);
+                    const storageRef = ref(storage, `artifacts/${projectId}/group_files/${groupId}/${Date.now()}-${file.name}`);
                     await uploadBytes(storageRef, file);
                     fileUrl = await getDownloadURL(storageRef);
                     fileName = file.name;
                     mimeType = file.type;
                 }
 
-                const docRef = doc(collection(db, `artifacts/${appId}/public/data/files`));
+                const docRef = doc(collection(db, `artifacts/${projectId}/public/data/files`));
                 await setDoc(docRef, {
                     id: docRef.id,
                     groupId: groupId,
@@ -717,7 +709,7 @@
             if (labDataListener[groupId]) labDataListener[groupId]();
             
             // Yeni dinleyiciyi başlat
-            const qFiles = query(collection(db, `artifacts/${appId}/public/data/files`), where('groupId', '==', groupId));
+            const qFiles = query(collection(db, `artifacts/${projectId}/public/data/files`), where('groupId', '==', groupId));
             
             labDataListener[groupId] = onSnapshot(qFiles, (snapshot) => {
                 const files = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -767,7 +759,7 @@
 
             try {
                 // 1. Firestore kaydını sil
-                await deleteDoc(doc(db, `artifacts/${appId}/public/data/files`, fileId));
+                await deleteDoc(doc(db, `artifacts/${projectId}/public/data/files`, fileId));
 
                 // 2. Eğer dosya ise, Storage'dan da sil
                 if (fileType === 'file' && fileUrl) {
@@ -802,7 +794,7 @@
             }
 
             try {
-                const docRef = doc(collection(db, `artifacts/${appId}/public/data/announcements`));
+                const docRef = doc(collection(db, `artifacts/${projectId}/public/data/announcements`));
                 await setDoc(docRef, {
                     id: docRef.id,
                     title: title,
@@ -865,7 +857,7 @@
              if (!confirm(`'${title}' başlıklı duyuruyu silmek istediğinizden emin misiniz?`)) return;
 
              try {
-                await deleteDoc(doc(db, `artifacts/${appId}/public/data/announcements`, announcementId));
+                await deleteDoc(doc(db, `artifacts/${projectId}/public/data/announcements`, announcementId));
                 showMessage("Duyuru başarıyla silindi.", false);
             } catch (error) {
                 console.error("Duyuru silme hatası:", error);
@@ -877,7 +869,7 @@
 
         function loadPanelForGroup(groupId) {
             if (!db) return;
-            const panelRef = doc(db, `artifacts/${appId}/public/data/panels`, groupId);
+            const panelRef = doc(db, `artifacts/${projectId}/public/data/panels`, groupId);
             getDoc(panelRef).then(docSnap => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
@@ -919,7 +911,7 @@
             }
 
             try {
-                const panelRef = doc(db, `artifacts/${appId}/public/data/panels`, groupId);
+                const panelRef = doc(db, `artifacts/${projectId}/public/data/panels`, groupId);
                 await setDoc(panelRef, {
                     id: groupId,
                     groupId: groupId,
@@ -992,7 +984,7 @@
             const contribution = ((value / baseline) * 100).toFixed(0);
 
             try {
-                const docRef = doc(collection(db, `artifacts/${appId}/public/data/lab_results`));
+                const docRef = doc(collection(db, `artifacts/${projectId}/public/data/lab_results`));
                 await setDoc(docRef, {
                     id: docRef.id,
                     groupId: groupId,
@@ -1061,7 +1053,7 @@
             if (!confirm(`Bu LAB kaydını silmek istediğinizden emin misiniz?`)) return;
 
              try {
-                await deleteDoc(doc(db, `artifacts/${appId}/public/data/lab_results`, recordId));
+                await deleteDoc(doc(db, `artifacts/${projectId}/public/data/lab_results`, recordId));
                 showMessage("LAB kaydı başarıyla silindi.", false);
             } catch (error) {
                 console.error("LAB kaydı silme hatası:", error);
@@ -1075,7 +1067,7 @@
             if (labDataListener[groupId]) labDataListener[groupId]();
             
             // Yeni dinleyiciyi başlat
-            const qLab = query(collection(db, `artifacts/${appId}/public/data/lab_results`), where('groupId', '==', groupId));
+            const qLab = query(collection(db, `artifacts/${projectId}/public/data/lab_results`), where('groupId', '==', groupId));
             
             labDataListener[groupId] = onSnapshot(qLab, (snapshot) => {
                 const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
