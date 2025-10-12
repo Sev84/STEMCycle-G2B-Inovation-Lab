@@ -436,29 +436,46 @@
                     db = getFirestore(app);
                     auth = getAuth(app);
                     storage = getStorage(app);
-
-                    // Kimlik doğrulama
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        await signInAnonymously(auth);
-                    }
                 }
-                
-                onAuthStateChanged(auth, (user) => {
+
+                // Kimlik doğrulama akışı (Hata toleranslı)
+                onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         userId = user.uid;
                         getLocationAndSetUserInfo(isNewUser); 
                         setupRealtimeListeners();
                     } else {
-                        console.error("Firebase kimlik doğrulama başarısız oldu.");
-                        authModalEl.classList.remove('hidden');
+                        // Eğer token yoksa veya başarısızsa anonim giriş dene (YEDEK MEKANİZMA)
+                        try {
+                             if (initialAuthToken) {
+                                // Token varsa deneme
+                                await signInWithCustomToken(auth, initialAuthToken);
+                             } else {
+                                // Token yoksa anonim giriş
+                                await signInAnonymously(auth);
+                             }
+                        } catch (authError) {
+                            console.error("Auth yedek mekanizması hatası:", authError);
+                            showMessage(`Hata: Anonim giriş başarısız oldu. Kuralları kontrol edin.`, true);
+                        }
                     }
                 });
+                
+                // Başlangıç kimlik doğrulamasını tetikle
+                if (auth.currentUser === null) {
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken).catch(async () => {
+                             // Token başarısız olursa anonim dene
+                             await signInAnonymously(auth);
+                        });
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                }
 
             } catch (error) {
                 console.error("Firebase başlatma veya kimlik doğrulama hatası:", error);
-                showMessage(`Hata: Uygulama başlatılamadı. Kuralları kontrol edin. ${error.code}`, true);
+                showMessage(`Hata: Uygulama başlatılamadı. Kuralları ve konsolu kontrol edin.`, true);
             }
         }
 
@@ -1220,7 +1237,7 @@
         
         window.onload = () => {
              // Kullanıcının ilk kez girip girmediğini kontrol et
-             if (!localStorage.getItem('user-name') || !localStorage.getItem('user-school')) {
+             if (!localStorage.getItem('user_name') || !localStorage.getItem('user_school')) {
                 authModalEl.classList.remove('hidden');
              } else {
                  // Var olan kullanıcıysa Firebase'i başlat
