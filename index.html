@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="tr">
+<!-- ... (head ve body içeriğinin başı değişmedi) ... -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -746,6 +746,7 @@
         }
 
         async function initializeFirebase() {
+            // isRegistered, fonksiyon çağrıldığında local storage'da ne olduğuna göre ayarlanmalı
             const isRegistered = localStorage.getItem('user_name') && localStorage.getItem('user_school');
             try {
                 if (!app) {
@@ -756,37 +757,60 @@
                     initializeMap(); 
                 }
                 
+                // SADECE onAuthStateChanged dinleyicisini kullan
                 onAuthStateChanged(auth, (user) => {
                     if (user) { 
+                        // Kullanıcı GİRDİ
                         if (user.uid !== userId) { // Sadece kullanıcı değiştiyse veya ilk yüklemedeyse çalıştır
+                            console.log("Kullanıcı durumu değişti:", user.uid);
                             userId = user.uid;
-                            isGuest = !isRegistered;
+                            
+                            // isRegistered durumunu LOKAL DEPOLAMADAN tekrar kontrol et
+                            const currentIsRegistered = localStorage.getItem('user_name') && localStorage.getItem('user_school');
+                            isGuest = !currentIsRegistered;
+                            
                             getLocationAndSetUserInfo(); 
                             setupRealtimeListeners();
                         }
                     } else {
-                         // Kullanıcı yoksa anonim giriş yapmayı dene
-                         signInAnonymously(auth).catch(err => {
-                             console.error("Anonim giriş hatası:", err);
-                             showMessage("Sunucuya bağlanılamadı. Lütfen sayfayı yenileyin.", true);
-                         });
+                         // Kullanıcı YOK (veya çıkış yaptı)
+                         console.log("Kullanıcı yok, onAuthStateChanged'den tetiklendi.");
+                         userId = null;
+                         isGuest = true;
+                         // (Giriş denemesi aşağıda yapıldığı için burada tekrar gerekmez)
                     }
                 });
 
+                // Kodu basitleştir: Sadece currentUser yoksa giriş yapmayı dene
                 if (!auth.currentUser) { 
-                    await signInAnonymously(auth);
-                } else if (auth.currentUser.uid !== userId) {
-                    // Mevcut kullanıcıyı işle (eğer onAuthStateChanged tetiklenmediyse)
-                    userId = auth.currentUser.uid;
-                    isGuest = !isRegistered;
-                    getLocationAndSetUserInfo(); 
-                    setupRealtimeListeners();
+                    console.log("Mevcut kullanıcı yok, anonim giriş deneniyor...");
+                    try {
+                        await signInAnonymously(auth);
+                        // Başarılı olursa, onAuthStateChanged tetiklenecek ve gerisini halledecek
+                        console.log("Anonim giriş başarılı.");
+                    } catch (authError) {
+                        // BU BLOK, KULLANICININ HATASINI YAKALAYACAK
+                        console.error("Anonim giriş BAŞARISIZ:", authError);
+                        // Hata mesajını daha spesifik hale getir
+                        showMessage(currentLanguage === 'tr' ? "Giriş başarısız. Firebase konsolunda 'Anonymous Authentication' etkin mi?" : "Login failed. Is 'Anonymous Authentication' enabled in Firebase console?", true);
+                        throw authError; // Hatayı at ki registerUser/loginUser da bilsin
+                    }
+                } else {
+                    // Mevcut kullanıcı varsa (sayfa yenileme gibi), state'i manuel tetikle
+                    if (auth.currentUser.uid !== userId) {
+                         console.log("Mevcut kullanıcı bulundu, state manuel ayarlanıyor.");
+                         userId = auth.currentUser.uid;
+                         isGuest = !isRegistered;
+                         getLocationAndSetUserInfo(); 
+                         setupRealtimeListeners();
+                    }
                 }
 
             } catch (error) {
-                console.error("Firebase başlatma/giriş hatası:", error);
+                // Bu blok şimdi initializeApp veya diğer Firebase hatalarını yakalayacak
+                console.error("Firebase başlatma hatası:", error);
                 showMessage(currentLanguage === 'tr' ? `HATA: Uygulama başlatılamadı. Lütfen konsolu kontrol edin.` : `ERROR: Application failed to initialize. Please check the console.`, true);
-                throw error; 
+                throw error; // Hata atılmaya devam etmeli ki registerUser/loginUser bilsin.
             }
         }
 
@@ -1508,4 +1532,5 @@
     </script>
 </body>
 </html>
+
 
