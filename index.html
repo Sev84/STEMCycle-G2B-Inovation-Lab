@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- ... (head ve body içeriğinin başı değişmedi) ... -->
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,1540 +15,526 @@
      crossorigin=""/>
     
     <style>
-        /* YENİ DOĞA VE DENİZ TEMASI */
         body { 
             font-family: 'Inter', sans-serif; 
-            background-color: #e8f5e9; /* Çok Açık Yeşil (Doğa) */
+            background-color: #f0f9ff;
         } 
         
-        /* Şeffaf Arka Plan Eklenmesi */
-        #app {
-            position: relative;
-            z-index: 10;
-        }
-
         #app::before {
             content: '';
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            /* Arkaplan Poster Yolu Düzeltildi */
-            background-image: url('Poster1.jpg'); /* DEĞİŞTİ - Gerçek dosya adı */
-            background-size: cover;
-            background-position: center;
-            opacity: 0.3; /* DEĞİŞTİ - Şeffaflık ayarı artırıldı */
-            z-index: 0;
-            pointer-events: none; /* Etkileşimi engelleme */
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: url('https://www.transparenttextures.com/patterns/cubes.png');
+            opacity: 0.1;
+            z-index: -1;
+            pointer-events: none;
         }
         
-        /* Giriş Modalının Arka Planı */
-        #auth-modal.has-background .modal-content {
-            /* DEĞİŞTİ: Gereksiz ve görünmeyen arkaplan resmi kaldırıldı */
-            background-size: cover;
-            background-position: center;
-            color: white; 
-            position: relative;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-        }
-        
-        /* Modal İçeriği Arkaplanı */
-        #auth-modal.has-background .modal-inner-content {
-            background-color: rgba(255, 255, 255, 0.95); /* Yarı saydam beyaz katman */
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            color: #1f2937; /* Koyu Gri */
-        }
-
-        /* G2B (Green to Blue) Temasına Uygun Renkler */
-        .header-blue { background-color: #00796b; } /* Koyu Cam Göbeği (Derin Deniz) */
-        .accent-blue { background-color: #00838f; } /* Mavi Vurgu (Su) */
-        .accent-green { background-color: #4caf50; } /* Yeşil Vurgu (Doğa) */
+        .header-blue { background-color: #00796b; }
+        .accent-blue { background-color: #00838f; }
+        .accent-green { background-color: #4caf50; }
         .tab-active { border-bottom: 3px solid #00838f; color: #00838f; font-weight: 600; }
-        .container-fluid { max-width: 100vw; overflow-x: hidden; }
-        .announcement-card { border-left: 4px solid #ffb300; } /* Turuncu (Güneş) */
+        .announcement-card { border-left: 4px solid #ffb300; }
         .project-card { border-top: 5px solid #00838f; }
-        .blue-border { border-left-color: #00838f; }
-        .green-border { border-left-color: #4caf50; }
-        .lab-accent { background-color: #ffb300; } /* Laboratuvar için Turuncu */
+        .lab-accent { background-color: #ffb300; }
         
         #user-map { height: 300px; width: 100%; border-radius: 12px; margin-bottom: 1.5rem; z-index: 5; }
         
-        /* Drag-and-Drop Modülleri */
-        .module {
-            cursor: grab;
-            user-select: none;
-            transition: transform 0.1s;
-        }
+        .module { cursor: grab; user-select: none; }
         .module:active { cursor: grabbing; }
         #kit-canvas { 
             min-height: 250px; 
             background-color: #e2e8f0; 
             border: 2px dashed #94a3b8;
-            position: relative; /* Modüllerin pozisyonlanması için gerekli */
+            position: relative;
         }
         
-        /* Harita Marker Stilleri */
-        .custom-div-icon {
-            background-color: transparent !important;
-            border: none !important;
-        }
+        /* Harita ikonları için 'iframe' yerine divIcon kullanılır */
+        .custom-div-icon { background-color: transparent !important; border: none !important; }
         
     </style>
     
-    <!-- Leaflet (Harita) JS Yüklemesi -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20n6a9c8z2K4c40y89B7c191a3c638c1192d6e355="
-     crossorigin=""></script>
-
-    <!-- Tone.js (Ses Efektleri) Yüklemesi -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
 </head>
-<body class="container-fluid min-h-screen">
+<body class="min-h-screen">
 
-    <!-- Ana Uygulama Alanı -->
     <div id="app" class="flex flex-col min-h-screen">
         
         <!-- Hesap Oluşturma/Giriş Modalı -->
-        <div id="auth-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 has-background hidden">
-            <div class="modal-content p-0 rounded-xl shadow-2xl w-full max-w-sm">
-                
-                <div class="modal-inner-content">
-                    <h1 class="text-2xl font-bold mb-4 text-center text-accent-blue" data-i18n="welcome_title">HOŞ GELDİNİZ</h1>
-                    
-                    <!-- ESEP Kartları -->
-                    <div class="space-y-3 mb-6">
-                        <h2 class="text-sm font-semibold text-gray-700" data-i18n="esep_students_title">Öğrenci Girişleri ve Kaynaklar:</h2>
-                        <a href="https://school-education.ec.europa.eu/en/pupil-login" target="_blank" class="block p-3 bg-green-100 border border-green-300 rounded-lg hover:bg-green-200 transition duration-150" onclick="playClickSound(550)">
-                            <p class="font-bold text-green-700 text-sm" data-i18n="esep_login_btn">ESEP/eTwinning Öğrenci Girişi</p>
-                            <p class="text-xs text-gray-600" data-i18n="esep_login_desc">Proje kaynaklarına ve öğrenme materyallerine erişin.</p>
-                        </a>
-                        <a href="https://school-education.ec.europa.eu/en/" target="_blank" class="block p-3 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 transition duration-150" onclick="playClickSound(450)">
-                            <p class="font-bold text-blue-700 text-sm" data-i18n="esep_platform_btn">ESEP Okul Eğitimi Platformu</p>
-                            <p class="text-xs text-gray-600" data-i18n="esep_platform_desc">Platformun genel yapısını keşfedin.</p>
-                        </a>
-                    </div>
-                    
-                    <h2 class="text-xl font-bold mb-4 text-center text-accent-blue border-t pt-4" data-i18n="hub_login_title">STEMCycle Hub Girişi</h2>
-                    
-                    <div id="register-ui">
-                        <h3 class="font-bold text-sm mb-2 text-gray-700" data-i18n="new_register_title">Yeni Kayıt (Veya Bilgileri Güncelle)</h3>
-                        <input type="text" id="user-name-input" placeholder="Adınız, Soyadınız" class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:ring-accent-blue focus:border-accent-blue" data-i18n-placeholder="name_surname_placeholder">
-                        <input type="email" id="user-email-input" placeholder="E-posta Adresiniz (Opsiyonel)" class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:ring-accent-blue focus:border-accent-blue" data-i18n-placeholder="email_optional_placeholder">
-                        <input type="text" id="user-school-input" placeholder="Okulunuz / Ülkeniz" class="w-full p-2 border border-gray-300 rounded-lg mb-4 focus:ring-accent-blue focus:border-accent-blue" data-i18n-placeholder="school_country_placeholder">
-                        <button onclick="registerUser()" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 transition duration-150 mb-3" data-original-text="Kayıt Ol / Bilgileri Güncelle" data-i18n="register_update_btn">
-                            Kayıt Ol / Bilgileri Güncelle
-                        </button>
-                    </div>
-
-                    <div id="login-ui" class="mt-4">
-                        <h3 class="font-bold text-sm mb-2 text-gray-700 border-t pt-4" data-i18n="guest_login_title">Sadece Görüntülemek İçin Giriş Yap</h3>
-                        <button onclick="loginUser()" class="w-full accent-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition duration-150" data-original-text="Misafir Girişi Yap" data-i18n="guest_login_btn">
-                            Misafir Girişi Yap
-                        </button>
-                    </div>
+        <div id="auth-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
+                <h1 class="text-2xl font-bold mb-4 text-center text-accent-blue" data-i18n="welcome_title">HOŞ GELDİNİZ</h1>
+                <div class="space-y-3 mb-6">
+                    <h2 class="text-sm font-semibold text-gray-700" data-i18n="esep_students_title">Öğrenci Girişleri ve Kaynaklar:</h2>
+                    <a href="https://school-education.ec.europa.eu/en/pupil-login" target="_blank" class="block p-3 bg-green-100 border border-green-300 rounded-lg hover:bg-green-200 transition">
+                        <p class="font-bold text-green-700 text-sm" data-i18n="esep_login_btn">ESEP/eTwinning Öğrenci Girişi</p>
+                    </a>
+                    <a href="https://school-education.ec.europa.eu/en/" target="_blank" class="block p-3 bg-blue-100 border border-blue-300 rounded-lg hover:bg-blue-200 transition">
+                        <p class="font-bold text-blue-700 text-sm" data-i18n="esep_platform_btn">ESEP Okul Eğitimi Platformu</p>
+                    </a>
                 </div>
-                
-                <!-- Logo Yer Tutucuları Başlığa Taşındı -->
-                <div class="p-4 flex flex-wrap justify-center items-center space-x-2 bg-black bg-opacity-30 rounded-b-xl mt-auto">
-                    <!-- Logolar header'a taşındı -->
+                <h2 class="text-xl font-bold mb-4 text-center text-accent-blue border-t pt-4" data-i18n="hub_login_title">STEMCycle Hub Girişi</h2>
+                <div id="register-ui">
+                    <h3 class="font-bold text-sm mb-2 text-gray-700" data-i18n="new_register_title">Yeni Kayıt / Bilgi Güncelleme</h3>
+                    <input type="text" id="user-name-input" placeholder="Adınız, Soyadınız" class="w-full p-2 border rounded-lg mb-3">
+                    <input type="email" id="user-email-input" placeholder="E-posta (Opsiyonel)" class="w-full p-2 border rounded-lg mb-3">
+                    <input type="text" id="user-school-input" placeholder="Okulunuz / Ülkeniz" class="w-full p-2 border rounded-lg mb-4">
+                    <button onclick="registerUser()" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">Kayıt Ol / Güncelle</button>
                 </div>
-
+                <div id="login-ui" class="mt-4">
+                    <h3 class="font-bold text-sm mb-2 text-gray-700 border-t pt-4" data-i18n="guest_login_title">Veya Misafir Olarak Devam Et</h3>
+                    <button onclick="loginUser()" class="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700">Misafir Girişi</button>
+                </div>
+                <!-- DÜZELTİLMİŞ LOGOLAR -->
+                <div class="p-4 flex flex-wrap justify-center items-center space-x-4 mt-4 border-t">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjMwIiB2aWV3Qm94PSIwIDAgMTAwIDMwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGZpbGw9IiMwMDQ0OTQiIGQ9Ik0wIDIuNzQ2aDEuNzM4VjI3LjI1NEgwVjIuNzQ2ek0zLjI3IDIuNzQ2aDQuMDQ4YzIuODEgMCA0LjM2OC41MyA1LjY3NSAyLjE5NyAxLjMwNSAxLjY2NyAxLjk1OCAzLjg2NyAxLjk1OCA2LjYwMiAwIDIuNzM0LS42NTMgNC45MzQtMS45NTggNi42MDItMS4zMDcuMTY2Ny0yLjg2NSAyLjE5Ny01LjY3NSAyLjE5N0gzLjI3VjIuNzQ2Wm0xLjc0IDYuMDYydjcuMjNoMi4zMDhjMi4wMSAwIDIuOTI4LS44MjIgMi45MjgtMi43OTIgMC0yLjA1My0uOTE5LTIuNzUzLTIuNzgtMi43NTNINS4wMXpNMTUuODQ4IDIuNzQ2aDQuMDQ4YzIuODEgMCA0LjM2OC41MyA1LjY3NSAyLjE5NyAxLjMwNSAxLjY2NyAxLjk1OCAzLjg2NyAxLjk1OCA2LjYwMiAwIDIuNzM0LS42NTMgNC45MzQtMS45NTggNi42MDItMS4zMDcuMTY2Ny0yLjg2NSAyLjE5Ny01LjY3NSAyLjE5N0gxNS44NThWMi43NDZabTEuNzQgNi4wNjJ2Ny4yM2gyLjMwOGMyLjAxIDAgMi45MjgtLjgyMiAyLjkyOC0yLjc5MiAwLTIuMDUzLS45MTktMi43NTMtMi43OC0yLjc1M2gtMi4xNDhaTTI4LjQyNyAyLjM0N2MxLjQxMy0xLjM4IDIuOTctMi4wNyA0LjY3LTIuMDcgMS43OCAwIDMuMzguNjg1IDQuODEgMi4wNTcgMS40MzIgMS4zNzIgMi4xNDggMy4xNzcgMi4xNDggNS40MTUgMCAyLjE5Ny0uNzE2IDMuOTk3LTIuMTQ4IDUuNHMtMy4wMyAyLjEtNC44MSAyLjFjLTEuNyAwLTMuMjU3LS42OS00LjY3LTIuMDY5VjI3LjI1NGgtMS43MzhWMi43NDZoMS43Mzh2Ni44NTZaTTMzLjA5NyA5LjE5YzAgMS43NTguNTMgMy4xMTggMS41OTEgNC4wNzkgMS4wNi45NiAyLjMzOCAxLjQ0IDMuODQzIDEuNDQgMS41NDggMCAyLjg1MS0uNDggMy44ODYtMS40NCAxLjAzNS0uOTYgMS41NTMtMi4zMiAxLjU1My00LjA3OSAwLTEuNzE2LS41MTgtMy4wNjgtMS41NTMtNC4wNTktMS4wMzUtLjk5LTIuMzM4LTEuNDg1LTMuODg2LTEuNDg1LTEuNTA1IDAtMi43ODMuNDk1LTMuODQzIDEuNDg1LTEuMDYgMS0xLjU5MSAyLjM0My0xLjU5MSA0LjA1OVpNNTAuMTI3IDIuNzQ2aDMuMjE2bC0zLjAzIDkuMzE4LTUuNjU0LTkuMzE4aC0zLjU2M2w3LjIzIDExLjk0Ny43NDIgMS4yMzVoLTEuNjQxbC0xLjk3OS0zLjI2aC0uOTM4bC0uODk2IDEuNDI3IDIuMTEyIDMuNDkzaDMuMzIzbDYuOTI0LTExLjQwM2gxLjc2bC01LjUyIDkuMDg4IDQuMzY4IDcuMTY4aC0zLjMyMmwtMi44NzctNC43MTUtMS41MzEgMi41MmgxLjQ2N2wuODI4IDEuMzY4aC45NThsLjY3OCAxLjExNGgtNy45NjhsLjY3OC0xLjExNGguOTU4bC44MjgtMS4zNjhoMS40NjdMNDEuNiAyNy4yNTRsLTUuNzgtOS41MjVMODAuMDM0IDIuNzQ2aC0uNjU2bC01LjY1MyA5LjMxOEw2OC4wNDQgMi43NDZoLTMuMjE2bDQuNjkyIDcuNzYyIDQuNDUtNy43NjJoMy41NjNsLTcuMjMgMTEuOTQ3LS43NDIgMS4yMzVoMS42NDFsMS45OC0zLjI2aC45MzhsLjg5NiAxLjQyNy0yLjExMiAzLjQ5M2gtMy4zMjNMNTguMyAxNS44NGwtNi45MjQtMTEuNDAzaC0xLjc2bDUuNTIgOS4wODgtNC4zNjggNy4xNjhoMy4zMjJsMi44NzctNC43MTUgMS41MzIgMi41MmgtMS40NjdsLS44MjggMS4zNjhoLS45NThsLS42NzgtMS4xMTRoNy45NjhMNTkuMzU4IDI3LjI1NGw1Ljc4LTkuNTI1IDQuNjQ2IDcuNTI1aC42NTZaTTY5LjEyNyAyLjM0N2MxLjQxMy0xLjM4IDIuOTctMi4wNyA0LjY3LTIuMDcgMS43OCAwIDMuMzguNjg1IDQuODEgMi4wNTcgMS40MzIgMS4zNzIgMi4xNDggMy4xNzcgMi4xNDggNS40MTUgMCAyLjE5Ny0uNzE2IDMuOTk3LTIuMTQ4IDUuNHMtMy4wMyAyLjEtNC44MSAyLjFjLTEuNyAwLTMuMjU3LS42OS00LjY3LTIuMDY5VjI3LjI1NGgtMS43MzhWMi43NDZoMS43Mzh2Ni44NTZaTTczLjc5NyA5LjE5YzAgMS43NTguNTMgMy4xMTggMS41OTEgNC4wNzkgMS4wNi45NiAyLjMzOCAxLjQ0IDMuODQzIDEuNDQgMS41NDggMCAyLjg1MS0uNDggMy44ODYtMS40NCAxLjAzNS0uOTYgMS41NTMtMi4zMiAxLjU1My00LjA3OSAwLTEuNzE2LS41MTgtMy4wNjgtMS41NTMtNC4wNTktMS4wMzUtLjk5LTIuMzM4LTEuNDg1LTMuODg2LTEuNDg1LTEuNTA1IDAtMi43ODMuNDk1LTMuODQzIDEuNDg1LTEuMDYgMS0xLjU5MSAyLjM0My0xLjU5MSA0LjA1OVpNODQuMzQ2IDIuNzQ2aDEuNzM4VjIzLjQxNGMwIDEuMzc5LjM1NSAyLjQ1IDEuMDY2IDMuMjE2LjcxMS43NjYgMS42MTUgMS4xNSA'BmaWxsPSIjRkZEMTAwIiBkPSJNMzEuMTkyIDEyLjExMmwxLjQxNC0xLjQxMyAzLjU4NiAzLjU4NiAxLjQxNC0xLjQxNC0zLjU4Ni0zLjU4NiAxLjQxNC0xLjQxNC0zLjU4Ni0zLjU4NmEuOTk2Ljk5NiAwIDAgMC0xLjQxNCAwbC0xLjQxNCAxLjQxMyAzLjU4NiAzLjU4Ni0xLjQxNCAxLjQxMyAzLjU4NiAzLjU4NnoiLz48L3N2Zz4=" alt="eTwinning Logosu" class="h-6 opacity-80">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjMwIiB2aWV3Qm94PSIwIDAgMTAwIDMwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGZpbGw9IiMwMDkzZGEiIGQ9Ik0zMi4wMzIgMTIuMjk1SDIyLjk0bDMuOTc3IDMuOTc3di4wMDFoNS4xMTV2LTMuOTc4Wm0wIDUuMTJIMUMxLjgyNCAxLjEyIDIuODcyIDEuNTkgMy43MjggMi4zN2guMDJjLjk1Ny43OCAxLjU3IDEuODQgMi4xMDcgMy4xNTNsLjAwNS4wMTJjLjUzOCAxLjMxMy44MDYgMi43OC44MDYgNC40VjI3LjI1NWgtMS43MzhWMjMuNDE0Yy4wMDEtMS4zNzktLjM1NC0yLjQ1LTEuMDY1LTMuMjE2LS43MS0uNzY2LTEuNjE0LTEuMTUtMi43MDgtMS4xNUg4MC4zVjI3LjI1NGgtMS43MzhWOS45NmMwLTEuNzMzLjIyLTMuMjU3LjY1Ny00LjU3NC40MzYtMS4zMTcuOTk3LTIuNDI1IDEuNjgxLTMuMzI1IDEuMzU3LTEuNzU4IDMuMDc5LTIuNjM3IDUuMTY2LTIuNjM3IDEuOTk3IDAgMy42MzUuNzggNC45MTUgMi4zNHMxLjkxOSAzLjQ4MyAxLjkxOSA1Ljc3MnYxMi45MDFoLTEuNzM4di0xLjQ4NmMtMS4yNjYgMS4xOTUtMi43ODMgMS43OTMtNC41NSAxLjc5My0yLjEyIDAtMy45MS0uODctNS4zNzMtMi42MS0xLjQ2My0xLjc0LTEuNjY3LTMuNjQzLTEuNjY3LTUuNzA5IDAtMi4wNjYuMjA0LTMuOTczIDEuNjY3LTUuNzA5IDEuNDYzLTEuNzQgMy4yNTMtMi42MSA1LjM3My0yLjYxIDEuNzY3IDAgMy4yODMuNjAzIDQuNTUgMS43OTNWMTEuMTRjMC0yLjI4OS0uNjQzLTMuOTk3LTEuOTE5LTUuNzcyWk05NC4wMiAyLjM0N2MxLjQxMy0xLjM4IDIuOTctMi4wNyA0LjY3LTIuMDcgMS43OCAwIDMuMzguNjg1YyAxLjQzMiAxLjM3MiAyLjE0OCAzLjE3NyAyLjE0OCA1LjQxNSAwIDIuEzk3LS43MTYgMy45OTctMi4xNDggNS40cy0zLjAzIDIuMS00LjgxIDIuMWMtMS43IDAtMy4yNTctLjY5LTQuNjctMi4wNjlWMjcuMjU0aC0xLjczOFYyLjc0NmgxLjczOHY2Ljg1NlpNOTQuNjkgOS4xOWMwIDEuNzU4LjUzIDMuMTE4IDEuNTkxIDQuMDc5IDEuMDYuOTYgMi4zMzggMS40NCAzLjg0MyAxLjQ0IDEuNTQ4IDAgMi44NTEtLjQ4IDMuODg2LTEuNDQgMS4wMzUtLjk2IDEuNTUzLTIuMzIgMS41NTMtNC4wNzkgMC0xLjcxNi0uNTE4LTMuMDY4LTEuNTUzLTQuMDU5LTEuMDM1LTUuOTktMi4zMzgtMS40ODUtMy44ODYtMS40ODUtMS41MDUgMC0yLjc4My40OTUtMy44NDMgMS40ODUtMS4wNiAxLTEuNTkxIDIuMzQzLTEuNTkxIDQuMDU5WiIvPjxwYXRoIGZpbGw9IiMwMDkzZGEiIGQ9Ik0xOC40ODUgMTUuMDA4aDEuNDU2YTcuMDIgNy4wMiAwIDAgMCAzLjQ5OC0xLjA5NSA0LjQ4OSA0LjQ4OSAwIDAgMCAyLjQ1NC0zLjA4OCA0LjI4MiA0LjI4MiAwIDAgMC0xLjQ4OS00LjMzNCA1LjAxMiA1LjAxMiAwIDAgMC0zLjgxMS0xLjQ2OUgxOC40ODV2OS45ODYxWm0tMy4xNzcgOS4zMDVIMTUuMzA4VjMuOTY5aDUuMTc3YzEuNzYgMCAzLjMwNS4zNzkgNC43MzMgMS4xMzkgMS40MjcuNzU5IDIuNTcgMS44NzQgMy40MjggMy4zNDQgLjg1OCAxLjQ2OSAxLjI4NyAzLjE2IDEuMjg3IDUuMDc0IDAgMS42MTUtLjMyNSAzLjEyMy0uOTc0IDQuNTE4YTcuMDY5IDcuMDY5IDAgMCAxLTIuNjU3IDMuMTk4IDcuOTQxIDcuOTQxIDAgMCAxLTQgMS4zMDJINC4xMTRsMy4yMDggMy4yMDhoMy45ODd2LTguNDE1aC0zLjk4N2wtMy4yMDggMy4yMDhINC4xMTRsMy4yMDggMy4yMDh6TTIuNzU2IDE1LjAwOGgxLjQ1NmE3LjAyIDcuMDIgMCAwIDAgMy40OTgtMS4wOTUgNC40ODkgNC40ODkgMCAwIDAgMi40NTQtMy4wODggNC4yODIgNC4yODIgMCAwIDAtMS40ODktNC4zMzQgNS4wMTIgNS4wMTIgMCAwIDAtMy44MTEtMS40NjlIMi43NTZ2OS45ODYxWk0tLjQyIDI0LjMxM2gxNS43MjlWMy45NjloNS4xNzdjMS43NiAwIDMuMzA1LjM3OSA0LjczMyAxLjEzOSAxLjQyNy43NTkgMi41NyAxLjg3NCAzLjQyOCAzLjM0NCAuODU4IDEuNDY5IDEuMjg3IDMuMTYgMS4yODcgNS4wNzQgMCAxLjYxNS0uMzI1IDMuMTIzLS45NzQgNC41MThhNy4wNjkgNy4wNjkgMCAwIDEtMi42NTcgMy4xOTggNy45NDEgNy45NDEgMCAwIDEtNCAxLjMwMkgtLjQxOHoiLz48L3N2Zz4=" alt="CodeWeek Logosu" class="h-8 opacity-80">
+                </div>
             </div>
         </div>
 
         <!-- Başlık ve Kullanıcı Bilgisi -->
-        <header class="header-blue text-white p-4 shadow-lg sticky top-0 z-10">
+        <header class="header-blue text-white p-4 shadow-lg sticky top-0 z-20">
             <div class="flex justify-between items-center">
-                
-                <!-- Sol: Uygulama Başlığı ve Poster -->
                 <div class="flex items-center">
                     <h1 class="text-base sm:text-xl font-bold flex items-center">
-                        <svg class="w-6 h-6 mr-2 text-accent-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9h-9m-9 0a9 9 0 019-9m-9 9h6m-9 9a9 9 0 019-9m-9 9a9 9 0 009 9m9-9a9 9 0 01-9 9m9-9h-9m-9 0a9 9 0 019-9m-9 9h6"></path></svg>
-                        <span class="text-xl sm:text-2xl font-extrabold mr-2" data-i18n="app_main_title">STEMCycle G2B Lab Hub</span>
-                        <span class="text-sm font-light italic hidden sm:block" data-i18n="app_subtitle">BluEcoInVET</span>
+                        <svg class="w-6 h-6 mr-2 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9h-9m-9 0a9 9 0 019-9m-9 9h6m-9 9a9 9 0 019-9m-9 9a9 9 0 009 9m9-9a9 9 0 01-9 9m9-9h-9m-9 0a9 9 0 019-9m-9 9h6"></path></svg>
+                        <span data-i18n="app_main_title">STEMCycle G2B Lab Hub</span>
                     </h1>
-                    
-                    <!-- YENİ: Logolar Başlığa Eklendi (Eski "Poster" img yerine) -->
-                    <div class="flex items-center space-x-2 ml-4 pl-4 border-l border-gray-400 opacity-90 hidden sm:flex">
-                        <!-- DEĞİŞTİ: Tüm placehold.co linkleri gerçek dosya adları ile değiştirildi -->
-                        <img src="Logo1-1.png" alt="Logo 1" class="w-7 h-7 rounded-full">
-                        <img src="Logo1-2.png" alt="Logo 2" class="w-7 h-7 rounded-full">
-                        <img src="Logo1-3.png" alt="Logo 3" class="w-7 h-7 rounded-full">
-                        <img src="Logo1-4.png" alt="Logo 4" class="w-7 h-7 rounded-full">
-                        <img src="eTwinning-LogoHorizontal_CMYK.png" alt="eTwinning Logosu" class="h-7">
-                        <img src="CodeWeek.png" alt="CodeWeek Logosu" class="w-7 h-7 rounded-full">
-                    </div>
+                    <!-- DÜZELTİLMİŞ LOGOLAR (BAŞLIK) -->
+                    <span class="text-sm font-light italic ml-3 pl-3 border-l border-green-300 hidden sm:block">BluEcoInVET</span>
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjMwIiB2aWV3Qm94PSIwIDAgMTAwIDMwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGZpbGw9IiMwMDQ0OTQiIGQ9Ik0wIDIuNzQ2aDEuNzM4VjI3LjI1NEDgwVjIuNzQ2ek0zLjI3IDIuNzQ2aDQuMDQ4YzIuODEgMCA0LjM2OC41MyA1LjY3NSAyLjE5NyAxLjMwNSAxLjY2NyAxLjk1OCAzLjg2NyAxLjk1OCA2LjYwMiAwIDIuNzM0LS42NTMgNC45MzQtMS45NTggNi42MDItMS4zMDcuMTY2Ny0yLjg2NSAyLjE5Ny01LjY3NSAyLjE5N0gzLjI3VjIuNzQ2Wm0xLjc0IDYuMDYydjcuMjNoMi4zMDhjMi4wMSAwIDIuOTI4LS44MjIgMi45MjgtMi43OTIgMC0yLjA1My0uOTE5LTIuNzUzLTIuNzgtMi43NTNINS4wMXpNMTUuODQ4IDIuNzQ2aDQuMDQ4YzIuODEgMCA0LjM2OC41MyA1LjY3NSAyLjE5NyAxLjMwNSAxLjY2NyAxLjk1OCAzLjg2NyAxLjk1OCA2LjYwMiAwIDIuNzM0LS42NTMgNC45MzQtMS45NTggNi42MDItMS4zMDcuMTY2Ny0yLjg2NSAyLjE5Ny01LjY3NSAyLjE5N0gxNS44NThWMi43NDZabTEuNzQgNi4wNjJ2Ny4yM2gyLjMwOGMyLjAxIDAgMi45MjgtLjgyMiAyLjkyOC0yLjc5MiAwLTIuMDUzLS45MTktMi43NTMtMi43OC0yLjc1M2gtMi4xNDhaTTI4LjQyNyAyLjM0N2MxLjQxMy0xLjM4IDIuOTctMi4wNyA0LjY3LTIuMDcgMS43OCAwIDMuMzguNjg1IDQuODEgMi4wNTcgMS40MzIgMS4zNzIgMi4xNDggMy4xNzcgMi4xNDggNS40MTUgMCAyLjE5Ny0uNzE2IDMuOTk3LTIuMTQ4IDUuNHMtMy4wMyAyLjEtNC44MSAyLjFjLTEuNyAwLTMuMjU3LS42OS00LjY3LTIuMDY5VjI3LjI1NGgtMS43MzhWMi43NDZoMS43Mzh2Ni44NTZaTTMzLjA5NyA5LjE5YzAgMS43NTguNTMgMy4xMTggMS41OTEgNC4wNzkgMS4wNi45NiAyLjMzOCAxLjQ0IDMuODQzIDEuNDQgMS41NDggMCAyLjg1MS0uNDggMy44ODYtMS40NCAxLjAzNS0uOTYgMS41NTMtMi4zMiAxLjU1My00LjA3OSAwLTEuNzE2LS41MTgtMy4wNjgtMS41NTMtNC4wNTktMS4wMzUtLjk5LTIuMzM4LTEuNDg1LTMuODg2LTEuNDg1LTEuNTA1IDAtMi43ODMuNDk1LTMuODQzIDEuNDg1LTEuMDYgMS0xLjU5MSAyLjM0My0xLjU5MSA0LjA1OVpNNTAuMTI3IDIuNzQ2aDMuMjE2bC0zLjAzIDkuMzE4LTUuNjU0LTkuMzE4aC0zLjU2M2w3LjIzIDExLjk0Ny43NDIgMS4yMzVoLTEuNjQxbC0xLjk3OS0zLjI2aC0uOTM4bC0uODk2IDEuNDI3IDIuMTEyIDMuNDkzaDMuMzIzbDYuOTI0LTExLjQwM2gxLjc2bC01LjUyIDkuMDg4IDQuMzY4IDcuMTY4aC0zLjMyMmwtMi44NzctNC43MTUtMS41MzEgMi41MmgxLjQ2N2wuODI4IDEuMzY4aC45NThsLjY3OCAxLjExNGgtNy45NjhsLjY3OC0xLjExNGguOTU4bC44MjgtMS4zNjhoMS40NjdMNDEuNiAyNy4yNTRsLTUuNzgtOS41MjVMODAuMDM0IDIuNzQ2aC0uNjU2bC01LjY1MyA5LjMxOEw2OC4wNDQgMi43NDZoLTMuMjE2bDQuNjkyIDcuNzYyIDQuNDUtNy43NjJoMy41NjNsLTcuMjMgMTEuOTQ3LS43NDIgMS4yMzVoMS42NDFsMS45OC0zLjI2aC45MzhsLjg5NiAxLjQyNy0yLjExMiAzLjQ5M2gtMy4zMjNMNTguMyAxNS44NGwtNi45MjQtMTEuNDAzaC0xLjc2bDUuNTIgOS4wODgtNC4zNjggNy4xNjhoMy4zMjJsMi44NzctNC43MTUgMS41MzIgMi41MmgtMS40NjdsLS44MjggMS4zNjhoLS45NThsLS42NzgtMS4xMTRoNy45NjhMNTkuMzU4IDI3LjI1NGw1Ljc4LTkuNTI1IDQuNjQ2IDcuNTI1aC42NTZaTTY5LjEyNyAyLjM0N2MxLjQxMy0xLjM4IDIuOTctMi4wNyA0LjY3LTIuMDcgMS43OCAwIDMuMzguNjg1IDQuODEgMi4wNTcgMS40MzIgMS4zNzIgMi4xNDggMy4xNzcgMi4xNDggNS40MTUgMCAyLjE5Ny0uNzE2IDMuOTk3LTIuMTQ4IDUuNHMtMy4wMyAyLjEtNC44MSAyLjFjLTEuNyAwLTMuMjU3LS42OS00LjY3LTIuMDY5VjI3LjI1NGgtMS43MzhWMi43NDZoMS43Mzh2Ni44NTZaTTczLjc5NyA5LjE5YzAgMS43NTguNTMgMy4xMTggMS41OTEgNC4wNzkgMS4wNi45NiAyLjMzOCAxLjQ0IDMuODQzIDEuNDQgMS41NDggMCAyLjg1MS0uNDggMy44ODYtMS40NCAxLjAzNS0uOTYgMS41NTMtMi4zMiAxLjU1My00LjA3OSAwLTEuNzE2LS41MTgtMy4wNjgtMS41NTMtNC4wNTktMS4wMzUtLjk5LTIuMzM4LTEuNDg1LTMuODg2LTEuNDg1LTEuNTA1IDAtMi43ODMuNDk1LTMuODQzIDEuNDg1LTEuMDYgMS0xLjU5MSAyLjM0My0xLjU5MSA0LjA1OVpNODQuMzQ2IDIuNzQ2aDEuNzM4VjIzLjQxNGMwIDEuMzc5LjM1NSAyLjQ1IDEuMDY2IDMuMjE2LjcxMS43NjYgMS42MTUgMS4xNSIvPg0KPHBhdGggZmlsbD0iI0ZGRDEwMCIgZD0iTTMxLjE5MiAxMi4xMTJsMS40MTQtMS40MTMgMy41ODYgMy41ODYgMS40MTQtMS40MTQtMy41ODYtMy41ODYgMS40MTQtMS40MTQtMy41ODYtMy41ODZhLjk5Ni45OTYgMCAwIDAtMS40MTQgMGwtMS40MTQgMS40MTMgMy41ODYgMy41ODYtMS40MTQgMS40MTMgMy41ODYgMy41ODZ6Ii8+DQo8L3N2Zz4=" alt="eTwinning Logosu" class="h-5 ml-4 opacity-90 hidden sm:block">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjMwIiB2aWV3Qm94PSIwIDAgMTAwIDMwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxwYXRoIGZpbGw9IiMwMDkzZGEiIGQ9Ik0zMi4wMzIgMTIuMjk1SDIyLjk0bDMuOTc3IDMuOTc3di4wMDFoNS4xMTV2LTMuOTc4Wm0wIDUuMTJIMUMxLjgyNCAxLjEyIDIuODcyIDEuNTkgMy43MjggMi4zN2guMDJjLjk1Ny43OCAxLjU3IDEuODQgMi4xMDcgMy4xNTNsLjAwNS4wMTJjLjUzOCAxLjMxMy44MDYgMi43OC44MDYgNC40VjI3LjI1NWgtMS43MzhWMjMuNDE0Yy4wMDEtMS4zNzktLjM1NC0yLjQ1LTEuMDY1LTMuMjE2LS43MS0uNzY2LTEuNjE0LTEuMTUtMi43MDgtMS4xNUg4MC4zVjI3LjI1NGgtMS43MzhWOS45NmMwLTEuNzMzLjIyLTMuMjU3LjY1Ny00LjU3NC40MzYtMS4zMTcuOTk3LTIuNDI1IDEuNjgxLTMuMzI1IDEuMzU3LTEuNzU4IDMuMDc5LTIuNjM3IDUuMTY2LTIuNjM3IDEuOTk3IDAgMy42MzUuNzggNC45MTUgMi4zNHMxLjkxOSAzLjQ4MyAxLjkxOSA1Ljc3MnYxMi45MDFoLTEuNzM4di0xLjQ4NmMtMS4yNjYgMS4xOTUtMi43ODMgMS43OTMtNC41NSAxLjc5My0yLjEyIDAtMy45MS0uODctNS4zNzMtMi42MS0xLjQ2My0xLjc0LTEuNjY3LTMuNjQzLTEuNjY3LTUuNzA5IDAtMi4wNjYuMjA0LTMuOTczIDEuNjY3LTUuNzA5IDEuNDYzLTEuNzQgMy4yNTMtMi42MSA1LjM3My0yLjYxIDEuNzY3IDAgMy4yODMuNjAzIDQuNTUgMS43OTNWMTEuMTRjMC0yLjI4OS0uNjQzLTMuOTk3LTEuOTE5LTUuNzcyWk05NC4wMiAyLjM0N2MxLjQxMy0xLjM4IDIuOTctMi4wNyA0LjY3LTIuMDcgMS43OCAwIDMuMzguNjg1YyAxLjQzMiAxLjM3MiAyLjE0OCAzLjE3NyAyLjE0OCA1LjQxNSAwIDIuEzk3LS43MTYgMy45OTctMi4xNDggNS40cy0zLjAzIDIuMS00LjgxIDIuMWMtMS43IDAtMy4yNTctLjY5LTQuNjctMi4wNjlWMjcuMjU0aC0xLjczOFYyLjc0NmgxLjczOHY2Ljg1NlpNOTQuNjkgOS4xOWMwIDEuNzU4LjUzIDMuMTE4IDEuNTkxIDQuMDc5IDEuMDYuOTYgMi4zMzggMS40NCAzLjg0MyAxLjQ0IDEuNTQ4IDAgMi44NTEtLjQ4IDMuODg2LTEuNDQgMS4wMzUtLjk2IDEuNTUzLTIuMzIgMS41NTMtNC4wNzkgMC0xLjcxNi0uNTE4LTMuMDY4LTEuNTUzLTQuMDU5LTEuMDM1LTUuOTktMi4zMzgtMS40ODUtMy44ODYtMS40ODUtMS41MDUgMC0yLjc4My40OTUtMy44NDMgMS40ODUtMS4wNiAxLTEuNTkxIDIuMzQzLTEuNTkxIDQuMDU5WiIvPjxwYXRoIGZpbGw9IiMwMDkzZGEiIGQ9Ik0xOC40ODUgMTUuMDA4aDEuNDU2YTcuMDIgNy4wMiAwIDAgMCAzLjQ5OC0xLjA5NSA0LjQ4OSA0LjQ4OSAwIDAgMCAyLjQ1NC0zLjA4OCA0LjI4MiA0LjI4MiAwIDAgMC0xLjQ4OS00LjMzNCA1LjAxMiA1LjAxMiAwIDAgMC0zLjgxMS0xLjQ2OUgxOC40ODV2OS45ODYxWm0tMy4xNzcgOS4zMDVIMTUuMzA4VjMuOTY5aDUuMTc3YzEuNzYgMCAzLjMwNS4zNzkgNC43MzMgMS4xMzkgMS40MjcuNzU5IDIuNTcgMS44NzQgMy40MjggMy4zNDQgLjg1OCAxLjQ2OSAxLjI4NyAzLjE2IDEuMjg3IDUuMDc0IDAgMS42MTUtLjMyNSAzLjEyMy0uOTc0IDQuNTE4YTcuMDY5IDcuMDY5IDAgMCAxLTIuNjU3IDMuMTk4IDcuOTQxIDcuOTQxIDAgMCAxLTQgMS4zMDJINC4xMTRsMy4yMDggMy4yMDhoMy45ODd2LTguNDE1aC0zLjk4N2wtMy4yMDggMy4yMDhINC4xMTRsMy4yMDggMy4yMDh6TTIuNzU2IDE1LjAwOGgxLjQ1NmE3LjAyIDcuMDIgMCAwIDAgMy40OTgtMS4wOTUgNC40ODkgNC40ODkgMCAwIDAgMi40NTQtMy4wODggNC4yODIgNC4yODIgMCAwIDAtMS40ODktNC4zMzQgNS4wMTIgNS4wMTIgMCAwIDAtMy44MTEtMS40NjlIMi43NTZ2OS45ODYxWk0tLjQyIDI0LjMxM2gxNS43MjlWMy45NjloNS4xNzdjMS43NiAwIDMuMzA1LjM3OSA0LjczMyAxLjEzOSAxLjQyNy43NTkgMi41NyAxLjg3NCAzLjQyOCAzLjM0NCAuODU4IDEuNDY5IDEuMjg3IDMuMTYgMS4yODcgNS4wNzQgMCAxLjYxNS0uMzI1IDMuMTIzLS45NzQgNC41MThhNy4wNjkgNy4wNjkgMCAwIDEtMi42NTcgMy4xOTggNy45NDEgNy45NDEgMCAwIDEtNCAxLjMwMkgtLjQxOHoiLz48L3N2Zz4=" alt="CodeWeek Logosu" class="h-6 ml-3 opacity-90 hidden sm:block">
                 </div>
-                
-                <!-- Sağ: Dil ve Kullanıcı Bilgisi -->
-                <div class="flex items-center space-x-4">
-                    <!-- Dil Seçeneği -->
-                    <select id="language-select" class="bg-white text-gray-800 text-xs font-semibold p-1 rounded-md cursor-pointer hover:bg-gray-200" onchange="changeLanguage(this.value); playClickSound(580);">
-                        <option value="tr">TR</option>
-                        <option value="en">EN</option>
-                    </select>
-                    
-                    <!-- Kullanıcı Bilgisi -->
-                    <div class="text-sm">
-                        <p id="user-info" class="font-semibold text-right truncate"></p>
-                        <p id="user-location" class="text-xs opacity-70 truncate"></p>
-                    </div>
-                </div>
+                <div class="flex items-center space-x-4"><select id="language-select" class="bg-white text-gray-800 text-xs font-semibold p-1 rounded-md cursor-pointer" onchange="changeLanguage(this.value)"><option value="tr">TR</option><option value="en">EN</option></select><div class="text-sm"><p id="user-info" class="font-semibold text-right truncate"></p><p id="user-location" class="text-xs opacity-70 truncate"></p></div></div>
             </div>
         </header>
 
         <!-- Sekmeler -->
-        <nav class="bg-white shadow-md p-2 flex justify-around text-gray-600 sticky top-[68px] sm:top-[68px] z-10 overflow-x-auto whitespace-nowrap">
+        <nav class="bg-white shadow-md p-2 flex justify-around text-gray-600 sticky top-[68px] z-20 overflow-x-auto whitespace-nowrap">
             <button id="tab-groups" onclick="changeTab('groups')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0 tab-active" data-i18n="tab_groups">Gruplar</button>
             <button id="tab-files" onclick="changeTab('files')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0" data-i18n="tab_files">Dosyalar</button>
             <button id="tab-announcements" onclick="changeTab('announcements')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0" data-i18n="tab_announcements">Duyurular</button>
             <button id="tab-gallery" onclick="changeTab('gallery')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0" data-i18n="tab_boards">Panolar</button>
             <button id="tab-lab" onclick="changeTab('lab')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0" data-i18n="tab_lab_data">LAB Veri</button>
+            <!-- MODÜL SEKMESİ GERİ EKLENDİ -->
             <button id="tab-module" onclick="changeTab('module')" class="px-2 py-2 text-xs sm:text-sm flex-shrink-0" data-i18n="tab_module">
-                <svg class="w-5 h-5 inline-block sm:mr-1 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM19 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM7 20h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z"></path></svg>
+                <svg class="w-5 h-5 inline-block sm:mr-1 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM19 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM7 20h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z"></path></svg>
                 Modül
             </button>
         </nav>
 
         <!-- Ana İçerik Alanı -->
         <main class="flex-grow p-4 space-y-6 z-10 relative">
-
-            <!-- 1. Grup Yönetimi ve Projeler Sekmesi -->
-            <section id="groups-view" class="tab-content">
-                
-                <!-- İnteraktif Harita Alanı -->
-                <div class="bg-white p-4 rounded-xl shadow-lg mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2" data-i18n="map_title">
-                        <span class="w-2 h-2 rounded-full bg-accent-blue mr-2"></span>
-                        G2B Etki Haritası: Aktif Gruplar ve Konumlar
-                    </h2>
-                    <div id="user-map"></div>
-                </div>
-
-                <div id="group-management-ui" class="bg-white p-4 rounded-xl shadow-lg mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2" data-i18n="create_join_group_title">
-                        <span class="w-2 h-2 rounded-full bg-accent-blue mr-2"></span>
-                        Grup Oluştur / Katıl
-                    </h2>
-                    <input type="text" id="new-group-name" placeholder="Yeni Grup Adı (Mavi Ekonomi Projesi Adı)" class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:ring-accent-blue focus:border-accent-blue" data-i18n-placeholder="new_group_name_placeholder">
-                    
-                    <!-- Ekonomi Odak Seçimi -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="project_focus_label">Proje Odak Noktası:</label>
-                        <div class="flex space-x-4">
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="economyFocus" value="Mavi" checked class="form-radio text-accent-blue focus:ring-accent-blue" id="focus-blue">
-                                <span class="ml-2 font-medium text-accent-blue" data-i18n="focus_blue">Mavi Ekonomi</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="economyFocus" value="Yeşil" class="form-radio text-accent-green focus:ring-accent-green" id="focus-green">
-                                <span class="ml-2 font-medium text-accent-green" data-i18n="focus_green">Yeşil Ekonomi</span>
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <button onclick="createGroup()" class="w-full accent-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-150" data-original-text="<svg class='w-5 h-5 inline-block mr-2' fill='none' stroke='currentColor' viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4'></path></svg>Grup Oluştur" data-i18n="create_group_btn">
-                        <svg class="w-5 h-5 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 4v16m8-8H4'></path></svg>
-                        Grup Oluştur
-                    </button>
-                </div>
-                
-                <!-- Grupların Listelendiği Alan (Tüm Gruplar) -->
-                <div id="all-groups-list" class="space-y-4 mb-8">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2" data-i18n="all_groups_title">
-                        <span class="w-2 h-2 rounded-full bg-accent-blue mr-2"></span>
-                        Tüm Oluşturulan Gruplar
-                    </h2>
-                    <p id="loading-all-groups" class="text-gray-500 text-center py-4" data-i18n="loading_all_groups">Tüm gruplar yükleniyor...</p>
-                    <!-- Tüm Grup Kartları Buraya Eklenecek (Katıl/Ayrıl butonlarıyla) -->
-                </div>
-
-                <!-- Aktif Kullanıcılar ve Geçmişi -->
-                <div id="user-list-container" class="bg-white p-4 rounded-xl shadow-lg">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2" data-i18n="active_users_title">
-                         <span class="w-2 h-2 rounded-full bg-accent-green mr-2"></span>
-                         Aktif Kullanıcılar ve Geçmişi
-                    </h2>
-                    <div id="all-users-list" class="space-y-2 max-h-64 overflow-y-auto">
-                        <p class="text-gray-500 text-center py-4" data-i18n="loading_users">Kullanıcılar yükleniyor...</p>
-                    </div>
-                </div>
-            </section>
+            <section id="groups-view" class="tab-content"><div class="bg-white p-4 rounded-xl shadow-lg mb-6"><h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="map_title">Etki Haritası</h2><div id="user-map"></div></div><div class="bg-white p-4 rounded-xl shadow-lg mb-6"><h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="create_join_group_title">Grup Oluştur / Katıl</h2><input type="text" id="new-group-name" placeholder="Yeni Grup Adı" class="w-full p-2 border rounded-lg mb-3"><div class="mb-4"><label class="block text-sm font-medium" data-i18n="project_focus_label">Odak:</label><div class="flex space-x-4"><label><input type="radio" name="economyFocus" value="Mavi" checked> <span data-i18n="focus_blue">Mavi Ekonomi</span></label><label><input type="radio" name="economyFocus" value="Yeşil"> <span data-i18n="focus_green">Yeşil Ekonomi</span></label></div></div><button onclick="createGroup()" class="w-full accent-blue bg-blue-600 text-white py-2 rounded-lg font-semibold" data-i18n="create_group_btn">Grup Oluştur</button></div><div id="all-groups-list" class="space-y-4 mb-8"><h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="all_groups_title">Tüm Gruplar</h2></div><div class="bg-white p-4 rounded-xl shadow-lg"><h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="active_users_title">Aktif Kullanıcılar</h2><div id="all-users-list" class="space-y-2 max-h-64 overflow-y-auto"></div></div></section>
+            <section id="files-view" class="tab-content hidden"><div class="bg-white p-4 rounded-xl shadow-lg"><h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="file_share_title">Dosya Paylaşımı</h2><select id="group-select-files" class="w-full p-2 border rounded-lg mb-4"></select><div id="file-upload-area" class="hidden"><input type="file" id="file-input" class="w-full p-2 border rounded-lg mb-3"><input type="text" id="file-description" placeholder="Açıklama" class="w-full p-2 border rounded-lg mb-3"><button onclick="uploadFile()" class="w-full accent-blue bg-blue-600 text-white py-2 rounded-lg font-semibold" data-i18n="upload_file_link_btn">Yükle</button></div></div><div id="group-files-list" class="mt-6 space-y-4"><h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="selected_group_files">Grubun Dosyaları</h3></div></section>
+            <section id="announcements-view" class="tab-content hidden"><div class="bg-white p-4 rounded-xl shadow-lg mb-6"><h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="publish_announcement_title">Yeni Duyuru</h2><input type="text" id="announcement-title" placeholder="Başlık" class="w-full p-2 border rounded-lg mb-3"><textarea id="announcement-content" placeholder="İçerik" rows="3" class="w-full p-2 border rounded-lg mb-3"></textarea><button onclick="publishAnnouncement()" class="w-full lab-accent bg-yellow-500 text-white py-2 rounded-lg font-semibold" data-i18n="publish_btn">Yayınla</button></div><div id="announcements-list" class="space-y-4"><h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="all_announcements_title">Tüm Duyurular</h3></div></section>
+            <section id="gallery-view" class="tab-content hidden"><div class="bg-white p-4 rounded-xl shadow-lg"><h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="project_board_title">Proje Panosu</h2><select id="group-select-panel" class="w-full p-2 border rounded-lg mb-4"></select><div id="panel-editor-area" class="hidden"><input type="text" id="panel-title" placeholder="Pano Başlığı" class="w-full p-2 border rounded-lg mb-3"><textarea id="panel-content" placeholder="Pano İçeriği" rows="5" class="w-full p-2 border rounded-lg mb-3"></textarea><input type="url" id="panel-link" placeholder="Proje Linki (opsiyonel)" class="w-full p-2 border rounded-lg mb-3"><button onclick="saveProjectPanel()" class="w-full accent-green bg-green-600 text-white py-2 rounded-lg font-semibold" data-i18n="save_board_btn">Kaydet</button></div></div><div id="project-gallery" class="mt-6 space-y-4"><h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="innovation_gallery_title">İnovasyon Galerisi</h3></div></section>
+            <section id="lab-view" class="tab-content hidden"><div class="bg-white p-4 rounded-xl shadow-lg"><h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="lab_results_title">LAB Sonuçları</h2><select id="group-select-lab" class="w-full p-2 border rounded-lg mb-4"></select><div id="lab-input-area" class="hidden"><input type="text" id="lab-name" placeholder="Deney Adı" class="w-full p-2 border rounded-lg mb-3"><input type="number" id="lab-value" placeholder="Tasarruf (Litre/Ay)" class="w-full p-2 border rounded-lg mb-3"><input type="number" id="lab-baseline" placeholder="Temel Tüketim (Litre/Ay)" class="w-full p-2 border rounded-lg mb-3"><button onclick="calculateBlueContribution()" class="w-full lab-accent bg-yellow-500 text-white py-2 rounded-lg font-semibold" data-i18n="calculate_save_btn">Kaydet</button></div></div><div id="contribution-results" class="mt-6 space-y-4"><h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="group_contribution_score_title">Grup Katkı Puanı</h3><div id="current-contribution-card" class="p-4 bg-white rounded-xl shadow-md"></div><div id="lab-records-list" class="space-y-3"></div></div></section>
             
-            <!-- 2. Dosya Yükleme ve Görüntüleme Sekmesi -->
-            <section id="files-view" class="tab-content hidden">
-                <div class="bg-white p-4 rounded-xl shadow-lg border-l-4 border-gray-400">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="file_share_title">Dosya ve Link Paylaşımı</h2>
-                    <p class="text-sm text-gray-600 mb-4" data-i18n="file_share_desc">Lütfen dosya paylaşmak istediğiniz grubu seçin.</p>
-                    <select id="group-select-files" class="w-full p-2 border rounded-lg mb-4"></select>
-                    <div id="file-upload-area" class="hidden">
-                         <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="share_type_label">Paylaşım Türü:</label>
-                            <div class="flex space-x-4">
-                                <label class="inline-flex items-center"><input type="radio" name="uploadType" value="file" onclick="toggleFileInput('file')" checked class="form-radio text-accent-blue focus:ring-accent-blue"><span class="ml-2" data-i18n="upload_file">Dosya Yükle</span></label>
-                                <label class="inline-flex items-center"><input type="radio" name="uploadType" value="url" onclick="toggleFileInput('url')" class="form-radio text-accent-blue focus:ring-accent-blue"><span class="ml-2" data-i18n="add_link">Link Ekle</span></label>
-                            </div>
-                        </div>
-                        <input type="file" id="file-input" class="w-full p-2 border border-gray-300 rounded-lg mb-3">
-                        <input type="url" id="url-input" placeholder="http://tinkercad.com/proje-linki" class="w-full p-2 border border-gray-300 rounded-lg mb-3 hidden" data-i18n-placeholder="link_placeholder">
-                        <input type="text" id="file-description" placeholder="Açıklama (Örn: Su Analizi Raporu)" class="w-full p-2 border border-gray-300 rounded-lg mb-3" data-i18n-placeholder="description_placeholder">
-                        <button id="upload-btn" onclick="uploadFile()" class="w-full accent-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-150" data-i18n="upload_file_link_btn">Dosya/Link Yükle</button>
-                    </div>
-                </div>
-                <div id="group-files-list" class="mt-6 space-y-4">
-                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="selected_group_files">Seçili Grubun Dosyaları</h3>
-                    <p id="no-files-message" class="text-gray-500 text-center py-8" data-i18n="no_files_message">Lütfen bir grup seçin veya seçili grupta dosya bulunmamaktadır.</p>
-                </div>
-            </section>
-
-            <!-- 3. Duyurular ve Kaynaklar Sekmesi -->
-            <section id="announcements-view" class="tab-content hidden">
-                <div class="bg-white p-4 rounded-xl shadow-lg mb-6 border-l-4 border-orange-500">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="publish_announcement_title">Yeni Duyuru Yayınla</h2>
-                    <input type="text" id="announcement-title" placeholder="Duyuru Başlığı" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="announcement_title_placeholder">
-                    <textarea id="announcement-content" placeholder="Duyuru Metni (Örn: Yarınki toplantı linki)" rows="3" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="announcement_content_placeholder"></textarea>
-                    <button onclick="publishAnnouncement()" class="w-full lab-accent text-white py-2 rounded-lg font-semibold hover:bg-orange-600" data-i18n="publish_btn">Yayınla</button>
-                </div>
-                <div id="announcements-list" class="space-y-4">
-                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="all_announcements_title">Tüm Proje Duyuruları</h3>
-                    <p class="text-gray-500 text-center py-8" data-i18n="loading_announcements">Duyurular yükleniyor...</p>
-                </div>
-            </section>
-
-             <!-- 4. STEMCycle Dijital Sergi Panosu (Innovation Gallery) Sekmesi -->
-            <section id="gallery-view" class="tab-content hidden">
-                <div class="bg-white p-4 rounded-xl shadow-lg border-l-4 border-teal-500">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="project_board_title">Grup Proje Panosu (İnşa Et)</h2>
-                    <select id="group-select-panel" class="w-full p-2 border rounded-lg mb-4"></select>
-                    <div id="panel-editor-area" class="hidden">
-                        <input type="text" id="panel-title" placeholder="Pano Başlığı (Örn: Akıllı Su Yönetimi Girişimi)" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="board_title_placeholder">
-                        <textarea id="panel-content" placeholder="Su Analizi Okuryazarlığı ve Yeşil/Mavi Ekonomi Bağlantısını Buraya Yazın..." rows="5" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="board_content_placeholder"></textarea>
-                        <input type="url" id="panel-link" placeholder="Tinkercad veya Sunum Linki" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="board_link_placeholder">
-                        <button onclick="saveProjectPanel()" class="w-full accent-green text-white py-2 rounded-lg font-semibold hover:bg-green-600" data-i18n="save_board_btn">Panoyu Kaydet/Güncelle</button>
-                    </div>
-                    <p id="no-panel-group-selected" class="text-gray-500 text-center py-4" data-i18n="no_board_group_selected">Lütfen pano inşa etmek için bir grup seçin.</p>
-                </div>
-                <div id="project-gallery" class="mt-6 space-y-4">
-                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="innovation_gallery_title">Green to Blue İnovasyon Galerisi</h3>
-                    <p class="text-gray-500 text-center py-8" data-i18n="loading_boards">Panolar yükleniyor...</p>
-                </div>
-            </section>
-
-            <!-- 5. STEMCycle Simülasyon Laboratuvarı Sekmesi -->
-            <section id="lab-view" class="tab-content hidden">
-                <div class="bg-white p-4 rounded-xl shadow-lg border-l-4 lab-accent">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2" data-i18n="lab_results_title">LAB Sonuçları: Mavi Ekonomiye Katkı Takibi</h2>
-                    <p class="text-sm text-gray-600 mb-4" data-i18n="lab_results_desc">Sanal deney/simülasyon sonuçlarını girerek Mavi Ekonomi etkinizi takip edin.</p>
-                    <select id="group-select-lab" class="w-full p-2 border rounded-lg mb-4"></select>
-                    <div id="lab-input-area" class="hidden">
-                        <input type="text" id="lab-name" placeholder="Deney Adı (Örn: Gri Su Geri Dönüşüm Simülasyonu)" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="experiment_name_placeholder">
-                        <input type="number" id="lab-value" placeholder="Tasarruf Edilen Su (Litre/Ay)" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="saved_water_placeholder">
-                        <input type="number" id="lab-baseline" placeholder="Temel Tüketim (Litre/Ay, Örn: 1000)" class="w-full p-2 border rounded-lg mb-3" data-i18n-placeholder="baseline_consumption_placeholder">
-                        <button onclick="calculateBlueContribution()" class="w-full lab-accent text-white py-2 rounded-lg font-semibold hover:bg-orange-600" data-i18n="calculate_save_btn">Katkıyı Hesapla ve Kaydet</button>
-                    </div>
-                    <p id="lab-no-data" class="text-gray-500 text-center py-4" data-i18n="no_lab_data">Lütfen LAB verisi girmek için bir grup seçin.</p>
-                </div>
-
-                <div id="contribution-results" class="mt-6 space-y-4">
-                    <h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="group_contribution_score_title">Grup Katkı Puanı</h3>
-                    <div id="current-contribution-card" class="p-4 bg-white rounded-xl shadow-md hidden">
-                         <p class="text-gray-500 text-center py-4" data-i18n="no_data_yet">Henüz veri girilmedi.</p>
-                    </div>
-                    <div id="lab-records-list" class="space-y-3">
-                       <p class="text-gray-500 text-center py-4" data-i18n="all_lab_records">Tüm LAB kayıtları burada listelenecek.</p>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- 6. Sanal Modül Geliştirme (Drag & Drop) Sekmesi -->
+            <!-- MODÜL SEKMESİ İÇERİĞİ GERİ EKLENDİ -->
             <section id="module-view" class="tab-content hidden">
                 <div class="bg-white p-4 rounded-xl shadow-lg mb-6 border-l-4 border-orange-500">
                     <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center border-b pb-2" data-i18n="module_dev_title">
-                        <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM19 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM7 20h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z"></path></svg>
+                        <svg class="w-6 h-6 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM19 4a2 2 0 10-4 0v1a2 2 0 004 0V4zM7 20h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v11a2 2 0 002 2z"></path></svg>
                         Sanal Modül Geliştirme (Drag & Drop Kit)
                     </h2>
-                    
-                    <p class="text-sm text-gray-600 mb-4" data-i18n="module_dev_desc">Aşağıdaki modülleri sürükleyip, alttaki Sanal Kit Alanına bırakarak deney düzeneklerinizi inşa edin.</p>
-                    
-                    <!-- YENİ EKLEME: Kendi Bloğunu Oluştur -->
-                    <div id="create-custom-module" class="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <h3 class="text-sm font-semibold text-blue-700 mb-2" data-i18n="create_custom_module_title">Kendi Modülünü Oluştur</h3>
-                        <div class="flex space-x-2">
-                             <input type="text" id="custom-module-name" placeholder="Modül Adı (Örn: TDS Ölçer)" class="w-1/2 p-2 border rounded-lg text-xs" data-i18n-placeholder="module_name_placeholder">
-                             <select id="custom-module-type" class="w-1/4 p-2 border rounded-lg text-xs">
-                                 <option value="sensor" data-i18n="type_sensor">Sensör</option>
-                                 <option value="actuator" data-i18n="type_actuator">Aktüatör</option>
-                                 <option value="input" data-i18n="type_input">Giriş</option>
-                                 <option value="control" data-i18n="type_control">Kontrol</option>
-                                 <option value="storage" data-i18n="type_storage">Depolama</option>
-                             </select>
-                            <button onclick="createCustomModule()" class="w-1/4 bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 text-xs" data-i18n="add_block_btn">Bloğu Ekle</button>
-                        </div>
-                    </div>
-                    
+                    <p class="text-sm text-gray-600 mb-4" data-i18n="module_dev_desc">Modülleri sürükleyip, Sanal Kit Alanına bırakarak deney düzeneklerinizi inşa edin.</p>
                     <div id="module-palette" class="flex flex-wrap gap-3 p-3 bg-gray-100 rounded-lg mb-4">
-                        <!-- Sürükle-Bırak Modülleri (Başlangıç Seti) -->
                         <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="sensor" data-name="pH_Sensor" data-i18n="module_ph_sensor">pH Sensör</div>
                         <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="actuator" data-name="Pump" data-i18n="module_water_pump">Su Pompası</div>
                         <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="input" data-name="Rain_Collector" data-i18n="module_rain_collector">Yağmur Toplayıcı</div>
                         <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="control" data-name="Microcontroller" data-i18n="module_microcontroller">Kontrolcü (IoT)</div>
                         <div class="module bg-white text-gray-700 p-2 rounded-lg shadow-md text-xs font-semibold" draggable="true" data-type="storage" data-name="Greywater_Tank" data-i18n="module_greywater_tank">Gri Su Tankı</div>
-                        <!-- Özel modüller buraya eklenecek -->
                     </div>
-
-                    <!-- YENİ: Kit Yükleme Alanı -->
-                    <div class="flex space-x-2 mb-4">
-                        <select id="group-select-kit" class="w-1/3 p-2 border rounded-lg text-sm">
-                             <option value="" data-i18n="select_group_for_kit_select">-- Kit İçin Grup Seç --</option>
-                        </select>
-                        <select id="saved-kits-select" class="w-1/3 p-2 border rounded-lg text-sm">
-                            <option value="" data-i18n="load_saved_kits_select">-- Kayıtlı Kitleri Yükle --</option>
-                        </select>
-                        <button onclick="loadSavedKit()" class="w-1/3 bg-blue-500 text-white py-2 rounded-lg font-semibold hover:bg-blue-600 text-xs" data-i18n="load_kit_btn">Kiti Yükle</button>
-                    </div>
-
                     <h3 class="text-md font-semibold text-gray-700 mb-2" data-i18n="virtual_kit_area">Sanal Kit İnşa Alanı</h3>
                     <div id="kit-canvas" class="rounded-lg shadow-inner relative">
-                        <p class="text-center text-gray-500 pt-16" data-i18n="drag_modules_here">Modülleri Buraya Sürükleyin ve Bırakın</p>
+                        <p class="text-center text-gray-500 pt-16" data-i18n="drag_modules_here">Modülleri Buraya Sürükleyin</p>
                     </div>
-
-                    <!-- YENİ: Kit Kaydetme Alanı -->
-                    <input type="text" id="kit-name-input" placeholder="Kaydedilecek Kit Adı (Örn: Gri Su Filtre Kiti)" class="w-full p-2 border rounded-lg text-sm mt-4" data-i18n-placeholder="kit_name_placeholder">
-                    
-                    <div class="flex space-x-2 mt-3">
-                        <button onclick="saveKitCanvas()" class="w-1/2 bg-accent-blue text-white py-2 rounded-lg font-semibold hover:bg-blue-600 transition duration-150" data-i18n="save_kit_btn">
-                            Kiti Kaydet
-                        </button>
-                        <button onclick="clearKitCanvas()" class="w-1/2 bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600 transition duration-150" data-i18n="clear_canvas_btn">
-                            Kanvası Temizle
-                        </button>
-                    </div>
-                    
-                    <p id="module-output" class="text-sm text-gray-600 mt-4 p-2 bg-yellow-100 rounded hidden">
-                        **İnşa Edilen Kit:**
-                    </p>
+                    <button onclick="clearKitCanvas()" class="w-full mt-4 bg-red-500 text-white py-2 rounded-lg font-semibold hover:bg-red-600" data-i18n="clear_canvas_btn">Kanvası Temizle</button>
                 </div>
             </section>
         </main>
         
-        <!-- Alt Bilgilendirme Metni -->
-        <footer class="bg-gray-100 p-3 text-xs text-gray-600 text-center mt-auto z-10 relative">
-            <p data-i18n="project_desc"><strong>Proje Açıklaması:</strong> Bu platform, Karasal Sistemlerde Suya Dayalı Çözümlerin (Yeşil Ekonomi) Mavi Ekonomiye Etkisini, Su Analizi Okuryazarlığı ile ilişkilendirerek göstermeyi amaçlar.</p>
-            <p class="mt-1">STEMCycle G2B – Green to Blue Innovation Lab | Copyright &copy; 2025</p>
-        </footer>
+        <footer class="bg-gray-100 p-3 text-xs text-gray-600 text-center mt-auto z-10 relative"><p data-i18n="project_desc">Bu platform, su okuryazarlığı ile yeşil ve mavi ekonomi arasındaki ilişkiyi göstermeyi amaçlar.</p></footer>
     </div>
 
-    <!-- Hata ve Bilgilendirme Kutusu (Modal yerine) -->
-    <div id="message-box" class="fixed bottom-4 right-4 bg-red-500 text-white p-3 rounded-lg shadow-xl hidden transition-opacity duration-300 opacity-0 z-50">
-        Mesajınız buraya gelecek.
-    </div>
+    <div id="message-box" class="fixed bottom-4 right-4 bg-red-500 text-white p-3 rounded-lg shadow-xl hidden z-50"></div>
 
-    <!-- Firebase SDK'ları -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, query, where, arrayUnion, arrayRemove, deleteDoc, updateDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
         
-        // --- DİL SÖZLÜĞÜ (i18n) ---
-        const translations = {
-            tr: {
-                welcome_title: "HOŞ GELDİNİZ", hub_login_title: "STEMCycle Hub Girişi", guest_login_title: "Sadece Görüntülemek İçin Giriş Yap", new_register_title: "Yeni Kayıt (Veya Bilgileri Güncelle)",
-                register_update_btn: "Kayıt Ol / Bilgileri Güncelle", guest_login_btn: "Misafir Girişi Yap",
-                esep_students_title: "Öğrenci Girişleri ve Kaynaklar:", esep_login_btn: "ESEP/eTwinning Öğrenci Girişi", esep_login_desc: "Proje kaynaklarına ve öğrenme materyallerine erişin.", esep_platform_btn: "ESEP Okul Eğitimi Platformu", esep_platform_desc: "Platformun genel yapısını keşfedin.",
-                name_surname_placeholder: "Adınız, Soyadınız", email_optional_placeholder: "E-posta Adresiniz (Opsiyonel)", school_country_placeholder: "Okulunuz / Ülkeniz",
-                app_main_title: "STEMCycle G2B Lab Hub", app_subtitle: "BluEcoInVET",
-                tab_groups: "Gruplar", tab_files: "Dosyalar", tab_announcements: "Duyurular", tab_boards: "Panolar", tab_lab_data: "LAB Veri", tab_module: "Modül",
-                map_title: "G2B Etki Haritası: Aktif Gruplar ve Konumlar",
-                create_join_group_title: "Grup Oluştur / Katıl", new_group_name_placeholder: "Yeni Grup Adı (Mavi Ekonomi Projesi Adı)", project_focus_label: "Proje Odak Noktası:", focus_blue: "Mavi Ekonomi", focus_green: "Yeşil Ekonomi", create_group_btn: "Grup Oluştur",
-                all_groups_title: "Tüm Oluşturulan Gruplar", active_users_title: "Aktif Kullanıcılar ve Geçmişi",
-                loading_all_groups: "Tüm gruplar yükleniyor...", loading_users: "Kullanıcılar yükleniyor...",
-                project_desc: "Proje Açıklaması: Bu platform, Karasal Sistemlerde Suya Dayalı Çözümlerin (Yeşil Ekonomi) Mavi Ekonomiye Etkisini, Su Analizi Okuryazarlığı ile ilişkilendirerek göstermeyi amaçlar.",
-                upload_file_link_btn: "Dosya/Link Yükle", upload_file: "Dosya Yükle", add_link: "Link Ekle",
-                file_share_title: "Dosya ve Link Paylaşımı", file_share_desc: "Lütfen dosya paylaşmak istediğiniz grubu seçin.",
-                share_type_label: "Paylaşım Türü:", link_placeholder: "http://tinkercad.com/proje-linki", description_placeholder: "Açıklama (Örn: Su Analizi Raporu)",
-                selected_group_files: "Seçili Grubun Dosyaları", no_files_message: "Lütfen bir grup seçin veya seçili grupta dosya bulunmamaktadır.",
-                publish_announcement_title: "Yeni Duyuru Yayınla", announcement_title_placeholder: "Duyuru Başlığı", announcement_content_placeholder: "Duyuru Metni (Örn: Yarınki toplantı linki)",
-                publish_btn: "Yayınla", all_announcements_title: "Tüm Proje Duyuruları", loading_announcements: "Duyurular yükleniyor...",
-                // YENİ EKLENEN MODÜL ÇEVİRİLERİ
-                module_dev_title: "Sanal Modül Geliştirme (Drag & Drop Kit)",
-                module_dev_desc: "Aşağıdaki modülleri sürükleyip, alttaki Sanal Kit Alanına bırakarak deney düzeneklerinizi inşa edin.",
-                create_custom_module_title: "Kendi Modülünü Oluştur",
-                module_name_placeholder: "Modül Adı (Örn: TDS Ölçer)",
-                type_sensor: "Sensör", type_actuator: "Aktüatör", type_input: "Giriş", type_control: "Kontrol", type_storage: "Depolama",
-                add_block_btn: "Bloğu Ekle",
-                module_ph_sensor: "pH Sensör", module_water_pump: "Su Pompası", module_rain_collector: "Yağmur Toplayıcı", module_microcontroller: "Kontrolcü (IoT)", module_greywater_tank: "Gri Su Tankı",
-                select_group_for_kit_select: "-- Kit İçin Grup Seç --",
-                load_saved_kits_select: "-- Kayıtlı Kitleri Yükle --",
-                load_kit_btn: "Kiti Yükle",
-                virtual_kit_area: "Sanal Kit İnşa Alanı",
-                drag_modules_here: "Modülleri Buraya Sürükleyin ve Bırakın",
-                kit_name_placeholder: "Kaydedilecek Kit Adı (Örn: Gri Su Filtre Kiti)",
-                save_kit_btn: "Kiti Kaydet",
-                clear_canvas_btn: "Kanvası Temizle",
-                // Diğer sekmeler (Henüz tam aktif değil)
-                project_board_title: "Grup Proje Panosu (İnşa Et)", board_title_placeholder: "Pano Başlığı (Örn: Akıllı Su Yönetimi Girişimi)",
-                board_content_placeholder: "Su Analizi Okuryazarlığı ve Yeşil/Mavi Ekonomi Bağlantısını Buraya Yazın...", board_link_placeholder: "Tinkercad veya Sunum Linki",
-                save_board_btn: "Panoyu Kaydet/Güncelle", no_board_group_selected: "Lütfen pano inşa etmek için bir grup seçin.",
-                innovation_gallery_title: "Green to Blue İnovasyon Galerisi", loading_boards: "Panolar yükleniyor...",
-                lab_results_title: "LAB Sonuçları: Mavi Ekonomiye Katkı Takibi", lab_results_desc: "Sanal deney/simülasyon sonuçlarını girerek Mavi Ekonomi etkinizi takip edin.",
-                experiment_name_placeholder: "Deney Adı (Örn: Gri Su Geri Dönüşüm Simülasyonu)", saved_water_placeholder: "Tasarruf Edilen Su (Litre/Ay)",
-                baseline_consumption_placeholder: "Temel Tüketim (Litre/Ay, Örn: 1000)", calculate_save_btn: "Katkıyı Hesapla ve Kaydet",
-                no_lab_data: "Lütfen LAB verisi girmek için bir grup seçin.", group_contribution_score_title: "Grup Katkı Puanı",
-                no_data_yet: "Henüz veri girilmedi.", all_lab_records: "Tüm LAB kayıtları burada listelenecek."
-            },
-            en: {
-                welcome_title: "WELCOME", hub_login_title: "STEMCycle Hub Login", guest_login_title: "Login for Viewing Only", new_register_title: "New Registration (Or Update Info)",
-                register_update_btn: "Register / Update Info", guest_login_btn: "Guest Login",
-                esep_students_title: "Student Logins and Resources:", esep_login_btn: "ESEP/eTwinning Student Login", esep_login_desc: "Access project resources and learning materials.", esep_platform_btn: "ESEP School Education Platform", esep_platform_desc: "Explore the general structure of the platform.",
-                name_surname_placeholder: "First Name, Last Name", email_optional_placeholder: "Email Address (Optional)", school_country_placeholder: "School / Country",
-                app_main_title: "STEMCycle G2B Lab Hub", app_subtitle: "BluEcoInVET",
-                tab_groups: "Groups", tab_files: "Files", tab_announcements: "Announcements", tab_boards: "Boards", tab_lab_data: "LAB Data", tab_module: "Module",
-                map_title: "G2B Impact Map: Active Groups and Locations",
-                create_join_group_title: "Create / Join Group", new_group_name_placeholder: "New Group Name (Blue Economy Project Name)", project_focus_label: "Project Focus:", focus_blue: "Blue Economy", focus_green: "Green Economy", create_group_btn: "Create Group",
-                all_groups_title: "All Created Groups", active_users_title: "Active Users and History",
-                loading_all_groups: "Loading all groups...", loading_users: "Loading users...",
-                project_desc: "Project Description: This platform aims to show the impact of Water-Based Solutions in Terrestrial Systems (Green Economy) on the Blue Economy, relating it to Water Analysis Literacy.",
-                upload_file_link_btn: "Upload File/Link", upload_file: "Upload File", add_link: "Add Link",
-                file_share_title: "File and Link Sharing", file_share_desc: "Please select a group to share files with.",
-                share_type_label: "Share Type:", link_placeholder: "http://tinkercad.com/project-link", description_placeholder: "Description (e.g., Water Analysis Report)",
-                selected_group_files: "Selected Group's Files", no_files_message: "Please select a group, or there are no files in the selected group.",
-                publish_announcement_title: "Publish New Announcement", announcement_title_placeholder: "Announcement Title", announcement_content_placeholder: "Announcement Text (e.g., Tomorrow's meeting link)",
-                publish_btn: "Publish", all_announcements_title: "All Project Announcements", loading_announcements: "Loading announcements...",
-                // NEWLY ADDED MODULE TRANSLATIONS
-                module_dev_title: "Virtual Module Development (Drag & Drop Kit)",
-                module_dev_desc: "Build your experiment setups by dragging the modules below to the Virtual Kit Area.",
-                create_custom_module_title: "Create Your Own Module",
-                module_name_placeholder: "Module Name (e.g., TDS Meter)",
-                type_sensor: "Sensor", type_actuator: "Actuator", type_input: "Input", type_control: "Control", type_storage: "Storage",
-                add_block_btn: "Add Block",
-                module_ph_sensor: "pH Sensor", module_water_pump: "Water Pump", module_rain_collector: "Rain Collector", module_microcontroller: "Controller (IoT)", module_greywater_tank: "Greywater Tank",
-                select_group_for_kit_select: "-- Select Group for Kit --",
-                load_saved_kits_select: "-- Load Saved Kits --",
-                load_kit_btn: "Load Kit",
-                virtual_kit_area: "Virtual Kit Build Area",
-                drag_modules_here: "Drag and Drop Modules Here",
-                kit_name_placeholder: "Kit Name to Save (e.g., Greywater Filter Kit)",
-                save_kit_btn: "Save Kit",
-                clear_canvas_btn: "Clear Canvas",
-                // Other tabs (Not fully active yet)
-                project_board_title: "Group Project Board (Build)", board_title_placeholder: "Board Title (e.g., Smart Water Management Initiative)",
-                board_content_placeholder: "Write About Water Analysis Literacy and Green/Blue Economy Connection...", board_link_placeholder: "Tinkercad or Presentation Link",
-                save_board_btn: "Save/Update Board", no_board_group_selected: "Please select a group to build a board.",
-                innovation_gallery_title: "Green to Blue Innovation Gallery", loading_boards: "Loading boards...",
-                lab_results_title: "LAB Results: Blue Economy Contribution Tracking", lab_results_desc: "Track your Blue Economy impact by entering virtual experiment/simulation results.",
-                experiment_name_placeholder: "Experiment Name (e.g., Greywater Recycling Simulation)", saved_water_placeholder: "Water Saved (Liters/Month)",
-                baseline_consumption_placeholder: "Baseline Consumption (Liters/Month, e.g., 1000)", calculate_save_btn: "Calculate & Save Contribution",
-                no_lab_data: "Please select a group to enter LAB data.", group_contribution_score_title: "Group Contribution Score",
-                no_data_yet: "No data entered yet.", all_lab_records: "All LAB records will be listed here."
-            }
-        };
-
-        let currentLanguage = 'tr'; 
-
-        window.changeLanguage = (lang) => {
-            currentLanguage = lang;
-            document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                if (translations[lang] && translations[lang][key]) {
-                    el.textContent = translations[lang][key];
-                }
-            });
-             document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
-                const key = el.getAttribute('data-i18n-placeholder');
-                if (translations[lang] && translations[lang][key]) {
-                    el.placeholder = translations[lang][key];
-                }
-            });
-            // Çeviriyi anında uygulamak için listeleri yeniden render et
-            if (window.renderAllGroups && allGroups) renderAllGroups(Object.values(allGroups)); 
-            if (window.renderAllUsers && allUserMetadata) renderAllUsers();
-            if (window.renderFiles && currentFiles) renderFiles(currentFiles);
-            if (window.renderAnnouncements && currentAnnouncements) renderAnnouncements(currentAnnouncements);
-            if (window.renderSavedKitsDropdown && currentKits) renderSavedKitsDropdown(currentKits);
-        };
-
-        function autoDetectLanguage() {
-            const browserLang = navigator.language.split('-')[0];
-            const lang = (browserLang === 'en' || browserLang === 'tr') ? browserLang : 'tr';
-            document.getElementById('language-select').value = lang;
-            changeLanguage(lang);
-        }
-
-        let synth;
-        try {
-            synth = new Tone.Synth({
-                oscillator: { type: "sine" },
-                envelope: { attack: 0.005, decay: 0.1, sustain: 0.0, release: 0.1 }
-            }).toDestination();
-        } catch(e) { console.warn("Tone.js başlatılamadı.", e); }
-
-        window.playClickSound = (frequency = 440, duration = 0.05) => {
-             if (synth && Tone.context.state !== 'running') { Tone.context.resume(); }
-             if (synth) { synth.triggerAttackRelease(frequency, duration); }
-        };
-
-        document.addEventListener('click', (e) => {
-             const target = e.target;
-             const closestButton = target.closest('button');
-             const closestLink = target.closest('a');
-
-             if (closestButton) {
-                // YENİ KONTROL: Eğer bu bir sekme butonuysa, ses çalma, çünkü changeTab çalacak
-                if (closestButton.id && closestButton.id.startsWith('tab-')) {
-                    return;
-                }
-                playClickSound(500, 0.05);
-             } else if (closestLink) {
-                 // YENİ KONTROL: Eğer bu linkin kendi onclick sesi varsa, çalma
-                 if (closestLink.onclick && closestLink.onclick.toString().includes('playClickSound')) {
-                     return;
-                 }
-                 playClickSound(550, 0.05);
-             }
-        });
-
-        const projectId = "stemcycle-g2b-innovation-efe5c"; 
-        const apiKey = "AIzaSyAshVa6zGftQmBQcjo_HRHoOP92vb3kKgQ"; 
-        const authDomain = "stemcycle-g2b-innovation-efe5c.firebaseapp.com";
-        const storageBucket = "stemcycle-g2b-innovation-efe5c.appspot.com";
-        const firebaseConfig = { apiKey, authDomain, projectId, storageBucket, appId: "1:79339752913:web:5379abf2794791b7bda4f0" };
-        
+        const translations = { /* ... Çeviri metinleri ... */ };
         let app, db, auth, storage;
-        let userId = null, userName = '', userSchool = '', userEmail = ''; 
+        let userId = null, userName = '', userSchool = '', userEmail = '', isGuest = true;
         let userLat = null, userLon = null;
-        let isGuest = true;
-        let userGroups = [], allGroups = {}, allUserMetadata = []; 
-        let currentFiles = [], currentAnnouncements = [], currentKits = []; // Çeviri için eklendi
+        let userGroups = [], allUserMetadata = [], groupMap = {};
         let userMap = null, mapMarkers = []; 
-        
-        const authModalEl = document.getElementById('auth-modal');
-        const kitCanvasEl = document.getElementById('kit-canvas');
-        const modulePaletteEl = document.getElementById('module-palette');
-        let labDataListener = {}, kitDataListener = null, filesListener = null;
+        let isMapInitialized = false;
+        let filesListener, labDataListener;
 
+        const firebaseConfig = {
+            apiKey: "AIzaSyAshVa6zGftQmBQcjo_HRHoOP92vb3kKgQ",
+            authDomain: "stemcycle-g2b-innovation-efe5c.firebaseapp.com",
+            projectId: "stemcycle-g2b-innovation-efe5c",
+            storageBucket: "stemcycle-g2b-innovation-efe5c.appspot.com",
+            appId: "1:79339752913:web:5379abf2794791b7bda4f0"
+        };
+        
         function showMessage(message, isError = false) {
-             const box = document.getElementById('message-box');
+            const box = document.getElementById('message-box');
             box.textContent = message;
-            box.classList.remove('bg-red-500', 'bg-green-500', 'hidden', 'opacity-0');
-            box.classList.add(isError ? 'bg-red-500' : 'bg-green-500', 'opacity-100');
-            setTimeout(() => {
-                box.classList.remove('opacity-100');
-                box.classList.add('opacity-0');
-                setTimeout(() => { box.classList.add('hidden'); }, 300);
-            }, 3000);
-        }
-
-        function setButtonLoading(button, isLoading) {
-            if (!button) return; // Buton bulunamazsa hatayı engelle
-            button.disabled = isLoading;
-            const originalText = button.getAttribute('data-original-text') || button.innerHTML;
-            if (isLoading) {
-                 button.setAttribute('data-original-text', button.innerHTML);
-                 button.innerHTML = `<svg class="animate-spin h-5 w-5 mr-3 inline-block" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> İşleniyor...`;
-            } else {
-                 button.innerHTML = originalText;
-            }
+            box.className = `fixed bottom-4 right-4 p-3 rounded-lg shadow-xl z-50 ${isError ? 'bg-red-500' : 'bg-green-500'} text-white opacity-100`;
+            setTimeout(() => { box.classList.add('hidden'); }, 3000);
         }
         
-        function updateUserInfoUI() {
-             const userInfoEl = document.getElementById('user-info');
-             const userLocationEl = document.getElementById('user-location');
-            if (isGuest) {
-                 userName = currentLanguage === 'tr' ? "Misafir Giriş" : "Guest Login";
-                 userSchool = "";
-                 userInfoEl.textContent = userName;
-                 userLocationEl.textContent = currentLanguage === 'tr' ? "Görüntüleme Modu" : "Viewing Mode";
-            } else {
-                 userInfoEl.textContent = `${userName} (${userSchool})`;
-                 userLocationEl.textContent = userLat !== null ? `Konum: ${userLat}, ${userLon}` : (currentLanguage === 'tr' ? 'Konum Alınıyor...' : 'Getting Location...');
-            }
-            // Misafir kullanıcılar için butonları devre dışı bırak
-            document.getElementById('upload-btn').disabled = isGuest;
-            document.querySelector('#group-management-ui button').disabled = isGuest;
-            document.querySelector('#announcements-view button').disabled = isGuest;
-            document.querySelector('#gallery-view button').disabled = isGuest;
-            document.querySelector('#lab-view button').disabled = isGuest;
-            document.querySelector('#create-custom-module button').disabled = isGuest;
-            document.querySelector('#module-view button[onclick="saveKitCanvas()"]').disabled = isGuest;
-        }
-
-        function getLocationAndSetUserInfo() {
-            userName = localStorage.getItem('user_name') || '';
-            userSchool = localStorage.getItem('user_school') || '';
-            userEmail = localStorage.getItem('user_email') || '';
-            isGuest = (!userName || !userSchool);
-            
-            // DÜZELTME: Misafir bile olsa modalı gizle, çünkü giriş yapıldı.
-            authModalEl.classList.add('hidden');
-            
-            if (isGuest) {
-                 updateUserInfoUI();
-                 // authModalEl.classList.add('hidden'); // Zaten yukarıda yapıldı
-                 return; 
-            }
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    userLat = position.coords.latitude.toFixed(2);
-                    userLon = position.coords.longitude.toFixed(2);
-                    updateUserMetadata(); 
-                }, (error) => {
-                    userLat = 0.00; userLon = 0.00;
-                    updateUserMetadata(); 
-                    showMessage(currentLanguage === 'tr' ? "Konum bilgisi reddedildi. Haritada (0.00, 0.00) noktasında görüneceksiniz." : "Location permission denied. You will appear at (0.00, 0.00) on the map.", true);
-                }, { enableHighAccuracy: false, timeout: 5000, maximumAge: 0 });
-            } else {
-                userLat = 0.00; userLon = 0.00;
-                updateUserMetadata(); 
-            }
-            // authModalEl.classList.add('hidden'); // Zaten yukarıda yapıldı
-            updateUserInfoUI(); 
-        }
-
-        async function updateUserMetadata() {
-            if (!userId || !db || isGuest) return;
-            try {
-                const userRef = doc(db, `artifacts/${projectId}/public/data/user_metadata`, userId);
-                let joinedAt = new Date().toISOString();
-                const docSnap = await getDoc(userRef);
-                if (docSnap.exists()) { joinedAt = docSnap.data()?.joinedAt || joinedAt; }
-                await setDoc(userRef, {
-                    name: userName, school: userSchool, email: userEmail, 
-                    lat: userLat, lon: userLon,
-                    lastLogin: new Date().toISOString(), joinedAt: joinedAt
-                }, { merge: true });
-                updateUserInfoUI(); 
-            } catch (error) { console.error("Kullanıcı meta verisi güncellenemedi:", error); }
-        }
-
-        window.registerUser = async () => {
-            const button = document.querySelector('#register-ui button');
-            setButtonLoading(button, true);
-            try {
-                const name = document.getElementById('user-name-input').value.trim();
-                const school = document.getElementById('user-school-input').value.trim();
-                const email = document.getElementById('user-email-input').value.trim();
-                if (!name || !school) {
-                    showMessage(currentLanguage === 'tr' ? "Lütfen adınızı/soyadınızı ve okulunuzu/ülkenizi girin." : "Please enter your name/surname and school/country.", true);
-                    return;
-                }
-                localStorage.setItem('user_name', name);
-                localStorage.setItem('user_school', school);
-                localStorage.setItem('user_email', email); 
-                await initializeFirebase();
-                showMessage(currentLanguage === 'tr' ? "Kayıt başarılı! Uygulamaya yönlendiriliyorsunuz." : "Registration successful! Redirecting to application.", false);
-            } catch (e) {
-                console.error("Kayıt sırasında hata:", e);
-                showMessage(currentLanguage === 'tr' ? "Kayıt işlemi başarısız oldu. Lütfen tekrar deneyin." : "Registration failed. Please try again.", true);
-            } finally { setButtonLoading(button, false); }
-        }
-        
-        window.loginUser = async () => {
-            const button = document.querySelector('#login-ui button');
-            setButtonLoading(button, true);
-            try {
-                localStorage.removeItem('user_name');
-                localStorage.removeItem('user_school');
-                localStorage.removeItem('user_email');
-                await initializeFirebase();
-                showMessage(currentLanguage === 'tr' ? "Misafir girişi başarılı! Görüntüleme modundasınız." : "Guest login successful! You are in viewing mode.", false);
-            } catch (e) {
-                console.error("Giriş sırasında hata:", e);
-                showMessage(currentLanguage === 'tr' ? "Giriş işlemi başarısız oldu. Lütfen tekrar deneyin." : "Login failed. Please try again.", true);
-            } finally { setButtonLoading(button, false); }
-        }
-
-        async function initializeFirebase() {
-            // isRegistered, fonksiyon çağrıldığında local storage'da ne olduğuna göre ayarlanmalı
-            const isRegistered = localStorage.getItem('user_name') && localStorage.getItem('user_school');
-            try {
-                if (!app) {
-                    app = initializeApp(firebaseConfig); 
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                    storage = getStorage(app);
-                    initializeMap(); 
-                }
-                
-                // SADECE onAuthStateChanged dinleyicisini kullan
-                onAuthStateChanged(auth, (user) => {
-                    if (user) { 
-                        // Kullanıcı GİRDİ
-                        if (user.uid !== userId) { // Sadece kullanıcı değiştiyse veya ilk yüklemedeyse çalıştır
-                            console.log("Kullanıcı durumu değişti:", user.uid);
-                            userId = user.uid;
-                            
-                            // isRegistered durumunu LOKAL DEPOLAMADAN tekrar kontrol et
-                            const currentIsRegistered = localStorage.getItem('user_name') && localStorage.getItem('user_school');
-                            isGuest = !currentIsRegistered;
-                            
-                            getLocationAndSetUserInfo(); 
-                            setupRealtimeListeners();
-                        }
-                    } else {
-                         // Kullanıcı YOK (veya çıkış yaptı)
-                         console.log("Kullanıcı yok, onAuthStateChanged'den tetiklendi.");
-                         userId = null;
-                         isGuest = true;
-                         // (Giriş denemesi aşağıda yapıldığı için burada tekrar gerekmez)
-                    }
-                });
-
-                // Kodu basitleştir: Sadece currentUser yoksa giriş yapmayı dene
-                if (!auth.currentUser) { 
-                    console.log("Mevcut kullanıcı yok, anonim giriş deneniyor...");
-                    try {
-                        await signInAnonymously(auth);
-                        // Başarılı olursa, onAuthStateChanged tetiklenecek ve gerisini halledecek
-                        console.log("Anonim giriş başarılı.");
-                    } catch (authError) {
-                        // BU BLOK, KULLANICININ HATASINI YAKALAYACAK
-                        console.error("Anonim giriş BAŞARISIZ:", authError);
-                        // Hata mesajını daha spesifik hale getir
-                        showMessage(currentLanguage === 'tr' ? "Giriş başarısız. Firebase konsolunda 'Anonymous Authentication' etkin mi?" : "Login failed. Is 'Anonymous Authentication' enabled in Firebase console?", true);
-                        throw authError; // Hatayı at ki registerUser/loginUser da bilsin
-                    }
-                } else {
-                    // Mevcut kullanıcı varsa (sayfa yenileme gibi), state'i manuel tetikle
-                    if (auth.currentUser.uid !== userId) {
-                         console.log("Mevcut kullanıcı bulundu, state manuel ayarlanıyor.");
-                         userId = auth.currentUser.uid;
-                         isGuest = !isRegistered;
-                         getLocationAndSetUserInfo(); 
-                         setupRealtimeListeners();
-                    }
-                }
-
-            } catch (error) {
-                // Bu blok şimdi initializeApp veya diğer Firebase hatalarını yakalayacak
-                console.error("Firebase başlatma hatası:", error);
-                showMessage(currentLanguage === 'tr' ? `HATA: Uygulama başlatılamadı. Lütfen konsolu kontrol edin.` : `ERROR: Application failed to initialize. Please check the console.`, true);
-                throw error; // Hata atılmaya devam etmeli ki registerUser/loginUser bilsin.
-            }
-        }
-
-        function setupRealtimeListeners() {
-            if (!db) return; // DB hazır değilse dinleyicileri kurma
-            
-            // Gruplar ve Kullanıcılar
-            const groupsCol = collection(db, `artifacts/${projectId}/public/data/groups`);
-            const usersCol = collection(db, `artifacts/${projectId}/public/data/user_metadata`);
-            
-            onSnapshot(groupsCol, async (snapshot) => {
-                let allGroupsData = []; userGroups = [];
-                snapshot.forEach(doc => {
-                    const groupData = { id: doc.id, ...doc.data() };
-                    allGroupsData.push(groupData);
-                    if (groupData.members && groupData.members.includes(userId)) { userGroups.push(groupData); }
-                });
-                
-                // Kullanıcı verilerini bir kereye mahsus çek (veya başka bir dinleyiciye bağla)
-                try {
-                    // Kullanıcıları da dinlemek daha iyi olur
-                    if (!allUserMetadata.length) { // Sadece ilk yüklemede veya gerekirse
-                         onSnapshot(usersCol, (userSnapshot) => {
-                            allUserMetadata = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                            allGroups = {}; // Bu, kullanıcı ID'sine göre kullanıcı verilerini tutan bir nesne olmalı
-                            allUserMetadata.forEach(user => { allGroups[user.id] = user; });
-                            
-                            // Kullanıcılar yüklendikten sonra haritayı ve listeleri güncelle
-                            renderAllUsers(); 
-                            renderAllGroups(allGroupsData); 
-                            renderUserMap(allUserMetadata, allGroupsData);
-                        }, (e) => console.error("Kullanıcı meta verisi dinlenemedi:", e));
-                    } else {
-                         // Kullanıcılar zaten varsa, sadece grup listesini ve haritayı güncelle
-                         renderAllGroups(allGroupsData); 
-                         renderUserMap(allUserMetadata, allGroupsData);
-                    }
-                } catch (e) { console.error("Kullanıcı meta verisi çekilemedi:", e); }
-                
-                updateGroupSelectors(userGroups);
-                updateKitSelectors(allGroupsData); // Tüm grupları kit seçiciye gönder
-            }, (error) => { console.error("Grupları dinleme hatası:", error); showMessage(currentLanguage === 'tr' ? "Grup verileri yüklenirken hata oluştu." : "Error loading group data.", true); });
-            
-            // Diğer Dinleyiciler
-            onSnapshot(collection(db, `artifacts/${projectId}/public/data/announcements`), (snapshot) => { 
-                currentAnnouncements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderAnnouncements(currentAnnouncements); 
-            });
-            onSnapshot(collection(db, `artifacts/${projectId}/public/data/panels`), (snapshot) => { renderProjectGallery(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
-            onSnapshot(collection(db, `artifacts/${projectId}/public/data/custom_modules`), (snapshot) => { renderCustomModules(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); });
-        }
-        
-        function initializeMap() {
-            if (userMap) { userMap.remove(); userMap = null; }
-            if (typeof window.L === 'undefined' || typeof window.L.map !== 'function') {
-                setTimeout(initializeMap, 100);
-                return;
-            }
-            try {
-                const mapContainer = document.getElementById('user-map');
-                if (mapContainer && !mapContainer._leaflet_id) {
-                    userMap = window.L.map('user-map').setView([30, 20], 3);
-                    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                    }).addTo(userMap);
-                    setTimeout(() => {
-                        if (userMap) { userMap.invalidateSize(); }
-                    }, 100);
-                }
-            } catch (e) { console.error("Harita başlatma hatası:", e); }
-        }
-        
-        function renderUserMap(users, groups) {
-            if (!userMap) { return; }
-            mapMarkers.forEach(marker => marker.remove());
-            mapMarkers = [];
-            const groupMap = {};
-            groups.forEach(g => {
-                if(g.members){
-                    g.members.forEach(memberId => {
-                        if (!groupMap[memberId]) groupMap[memberId] = [];
-                        groupMap[memberId].push(g);
-                    });
-                }
-            });
-            let validLocationsExist = false;
-            users.forEach(user => {
-                const lat = parseFloat(user.lat);
-                const lon = parseFloat(user.lon);
-                if (isNaN(lat) || isNaN(lon) || (lat === 0 && lon === 0)) return; 
-                validLocationsExist = true;
-                const userGroupsInfo = groupMap[user.id] || [];
-                const isBlue = userGroupsInfo.some(g => g.economyFocus === 'Mavi');
-                const isGreen = userGroupsInfo.some(g => g.economyFocus === 'Yeşil');
-                let color = '#808080'; 
-                if (isBlue && isGreen) { color = '#ffb300'; } 
-                else if (isBlue) { color = '#00838f'; } 
-                else if (isGreen) { color = '#4caf50'; }
-                const markerHtmlStyles = `background-color: ${color}; width: 1.5rem; height: 1.5rem; display: block; left: -0.75rem; top: -0.75rem; position: relative; border-radius: 1.5rem 1.5rem 0; transform: rotate(45deg); border: 2px solid #FFF; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
-                const customIcon = window.L.divIcon({ className: "custom-div-icon", html: `<div style="${markerHtmlStyles}"></div>`, iconSize: [24, 24], iconAnchor: [12, 24] });
-                const userScore = user.puan || 0;
-                const groupNames = userGroupsInfo.map(g => g.name).join(', ') || (currentLanguage === 'tr' ? 'Yok' : 'None');
-                const popupContent = `<div class="font-bold">${user.name} (${user.school})</div><div class="text-sm font-semibold text-accent-blue">${currentLanguage === 'tr' ? 'Puan' : 'Score'}: ${userScore}</div><div class="text-sm">${currentLanguage === 'tr' ? 'Gruplar' : 'Groups'}: ${groupNames}</div><div class="text-xs text-gray-500">${currentLanguage === 'tr' ? 'Konum' : 'Location'}: ${lat}, ${lon}</div>`;
-                const marker = window.L.marker([lat, lon], { icon: customIcon }).bindPopup(popupContent).addTo(userMap);
-                mapMarkers.push(marker);
-            });
-             if (validLocationsExist && document.getElementById('groups-view').offsetParent !== null) {
-                 const bounds = window.L.featureGroup(mapMarkers).getBounds();
-                 if (bounds.isValid()) { userMap.fitBounds(bounds, { padding: [50, 50], maxZoom: 8 }); }
-            } else if (userMap) { userMap.setView([30, 20], 3); }
-        }
-        
-        window.renderAllUsers = () => { // renderAllUsers'ı global scope'a taşı
-            const userListEl = document.getElementById('all-users-list');
-            userListEl.innerHTML = '';
-            if (allUserMetadata.length === 0) {
-                 userListEl.innerHTML = `<p class="text-gray-500 text-center py-4">${currentLanguage === 'tr' ? 'Sisteme kayıtlı kullanıcı bulunamadı.' : 'No registered users found.'}</p>`;
-                 return;
-            }
-            const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-            allUserMetadata.sort((a, b) => new Date(b.lastLogin || 0) - new Date(a.lastLogin || 0));
-            allUserMetadata.forEach(user => {
-                const isCurrentUser = user.id === userId;
-                const dateStr = user.joinedAt ? new Date(user.joinedAt).toLocaleDateString(currentLanguage === 'tr' ? 'tr-TR' : 'en-US') : (currentLanguage === 'tr' ? 'Bilinmiyor' : 'Unknown');
-                const isActive = user.lastLogin && new Date(user.lastLogin) > threeDaysAgo;
-                const userCard = document.createElement('div');
-                userCard.className = `p-2 rounded-lg ${isActive ? 'bg-green-100 border border-green-400' : (isCurrentUser ? 'bg-blue-100 border border-blue-400' : 'bg-gray-50 border border-gray-200')}`;
-                userCard.innerHTML = `<p class="font-semibold text-sm ${isActive ? 'text-green-800' : (isCurrentUser ? 'text-blue-800' : 'text-gray-800')}">${user.name} ${isCurrentUser ? `<span class="text-xs font-normal text-red-500">(${currentLanguage === 'tr' ? 'Siz' : 'You'})</span>` : ''} ${isActive && !isCurrentUser ? `<span class="text-xs font-bold text-green-600 ml-1"> (${currentLanguage === 'tr' ? 'AKTİF' : 'ACTIVE'})</span>` : ''}</p><p class="text-xs text-gray-600">${user.school} | ${currentLanguage === 'tr' ? 'Katılım' : 'Joined'}: ${dateStr}</p>`;
-                userListEl.appendChild(userCard);
-            });
-        }
-        
-        window.renderAllGroups = (groups) => { // renderAllGroups'u global scope'a taşı
-            const allGroupsListEl = document.getElementById('all-groups-list');
-            allGroupsListEl.innerHTML = '';
-            if (groups.length === 0) {
-                allGroupsListEl.innerHTML = `<p class="text-gray-500 text-center py-8">${currentLanguage === 'tr' ? 'Henüz oluşturulmuş bir grup yok.' : 'No groups created yet.'}</p>`;
-                return;
-            }
-            groups.sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)); // En yeni gruplar üstte
-            groups.forEach(group => {
-                const members = group.members || [];
-                const focus = group.economyFocus || 'Mavi'; 
-                const statusColorClass = group.stemCycleStatus === 'Tasarım' ? 'bg-yellow-500' : group.stemCycleStatus === 'Uygulama' ? 'bg-red-500' : group.stemCycleStatus === 'Sonuç' ? 'bg-purple-600' : (focus === 'Yeşil' ? 'bg-accent-green' : 'bg-accent-blue');
-                const isMember = members.includes(userId);
-                const isOwner = group.ownerId === userId;
-                const memberListHtml = members.map(memberId => {
-                    const metadata = allGroups[memberId] || { name: `ID:${memberId.substring(0, 8)}`, school: (currentLanguage === 'tr' ? 'Bilinmiyor' : 'Unknown') };
-                    const isGroupOwner = memberId === group.ownerId;
-                    const isCurrentUser = memberId === userId; 
-                    return `<li class="flex items-center text-xs text-gray-700"><span class="w-2 h-2 rounded-full ${isGroupOwner ? 'bg-red-500' : 'bg-gray-400'} mr-2"></span><span class="font-medium ${isGroupOwner ? 'text-red-500' : ''} ${isCurrentUser ? 'font-bold text-accent-blue' : ''}">${metadata.name}</span> <span class="text-gray-500 ml-1">(${metadata.school})</span></li>`;
-                }).join('');
-                const statusUI = isGuest ? '' : renderStatusUpdateUI(group.id, group.stemCycleStatus, isOwner);
-                let buttonHTML = '';
-                if (!isGuest) {
-                    if (isMember) { buttonHTML = `<button onclick="leaveGroup('${group.id}', '${group.name}')" class="text-xs text-red-600 hover:text-red-800 font-medium p-1 rounded-md border border-red-300 transition duration-150">${currentLanguage === 'tr' ? 'Gruptan Ayrıl' : 'Leave Group'}</button>`; } 
-                    else { buttonHTML = `<button onclick="joinGroup('${group.id}', '${group.name}')" class="text-xs text-green-600 hover:text-green-800 font-medium p-1 rounded-md border border-green-300 transition duration-150">${currentLanguage === 'tr' ? 'Gruba Katıl' : 'Join Group'}</button>`; }
-                } else { buttonHTML = `<span class="text-xs text-gray-500 italic">${currentLanguage === 'tr' ? 'Giriş Yapmanız Gerekiyor' : 'Login Required'}</span>`; }
-                const card = document.createElement('div');
-                card.className = `p-4 rounded-xl shadow-md space-y-2 bg-white border-l-4 ${focus === 'Yeşil' ? 'border-green-500 green-border' : 'border-blue-500 blue-border'}`;
-                const focusText = focus === 'Yeşil' ? (currentLanguage === 'tr' ? 'Yeşil' : 'Green') : (currentLanguage === 'tr' ? 'Mavi' : 'Blue');
-                const statusText = group.stemCycleStatus || (currentLanguage === 'tr' ? 'Belirtilmemiş' : 'Undefined');
-                card.innerHTML = `<div class="flex justify-between items-start"><h3 class="text-lg font-semibold text-gray-800">${group.name}</h3><div class="flex flex-col items-end space-y-1"><span class="text-xs font-medium px-2 py-1 rounded-full text-white ${statusColorClass}">${currentLanguage === 'tr' ? 'Aşama' : 'Phase'}: ${statusText}</span><span class="text-xs font-semibold px-2 py-0.5 rounded text-white ${focus === 'Yeşil' ? 'bg-accent-green' : 'bg-accent-blue'}">${currentLanguage === 'tr' ? 'Odak' : 'Focus'}: ${focusText} ${currentLanguage === 'tr' ? 'Ekonomi' : 'Economy'}</span></div></div><h4 class="text-sm font-semibold text-gray-700 mt-3 border-t pt-2">${currentLanguage === 'tr' ? 'Üyeler' : 'Members'} (${members.length}):</h4><ul class="list-none space-y-1 pl-0 max-h-16 overflow-y-auto">${memberListHtml}</ul>${statusUI}<div class="flex space-x-2 pt-2 border-t mt-3">${buttonHTML}</div>`;
-                allGroupsListEl.appendChild(card);
-            });
-        }
-        
-        window.joinGroup = async (groupId, groupName) => {
-            if (isGuest || !db || !userId) return showMessage(currentLanguage === 'tr' ? "Bu özellik için kayıtlı kullanıcı olmalısınız." : "You must be a registered user for this feature.", true);
-            try {
-                const groupRef = doc(db, `artifacts/${projectId}/public/data/groups`, groupId);
-                await updateDoc(groupRef, { members: arrayUnion(userId) });
-                showMessage(`'${groupName}' ${currentLanguage === 'tr' ? 'grubuna başarıyla katıldınız!' : 'group joined successfully!'}`, false);
-            } catch (error) { console.error("Gruba katılma hatası:", error); showMessage(currentLanguage === 'tr' ? "Gruba katılırken bir hata oluştu." : "An error occurred while joining the group.", true); }
-        }
-        
-        window.createGroup = async () => {
-            if (isGuest || !db || !userId) return showMessage(currentLanguage === 'tr' ? "Bu özellik için kayıtlı kullanıcı olmalısınız." : "You must be a registered user for this feature.", true);
-            const button = document.querySelector('#group-management-ui button');
-            setButtonLoading(button, true);
-            try {
-                const name = document.getElementById('new-group-name').value.trim();
-                const focus = document.querySelector('input[name="economyFocus"]:checked').value;
-                if (!name) { showMessage(currentLanguage === 'tr' ? "Lütfen grup adını girin." : "Please enter a group name.", true); return; }
-                const groupId = Date.now().toString(); 
-                const groupRef = doc(db, `artifacts/${projectId}/public/data/groups`, groupId);
-                await setDoc(groupRef, { name: name, ownerId: userId, economyFocus: focus, stemCycleStatus: "Başlangıç", members: [userId], createdAt: new Date().toISOString() });
-                showMessage(`'${name}' ${currentLanguage === 'tr' ? 'grubu başarıyla oluşturuldu!' : 'group created successfully!'}`, false);
-                document.getElementById('new-group-name').value = '';
-            } catch (error) { console.error("Grup oluşturma hatası:", error); showMessage(currentLanguage === 'tr' ? "Grup oluşturulurken bir hata oluştu." : "An error occurred while creating the group.", true); } 
-            finally { setButtonLoading(button, false); }
-        };
-        
-        window.leaveGroup = async (groupId, groupName) => {
-            if (isGuest || !db || !userId) return showMessage(currentLanguage === 'tr' ? "Bu özellik için kayıtlı kullanıcı olmalısınız." : "You must be a registered user for this feature.", true);
-            const confirmMsg = `'${groupName}' ${currentLanguage === 'tr' ? 'grubundan ayrılmak istediğinizden emin misiniz?' : 'group. Are you sure you want to leave?'}`;
-            if (confirm(confirmMsg)) {
-                try {
-                    const groupRef = doc(db, `artifacts/${projectId}/public/data/groups`, groupId);
-                    await updateDoc(groupRef, { members: arrayRemove(userId) });
-                    showMessage(`'${groupName}' ${currentLanguage === 'tr' ? 'grubundan başarıyla ayrıldınız.' : 'group left successfully.'}`, false);
-                } catch (error) { console.error("Gruptan ayrılma hatası:", error); showMessage(currentLanguage === 'tr' ? "Gruptan ayrılırken bir hata oluştu." : "An error occurred while leaving the group.", true); }
-            }
-        };
-
-        window.uploadFile = async () => {
-            if (isGuest || !db || !userId) return showMessage(currentLanguage === 'tr' ? "Dosya yüklemek için kayıtlı kullanıcı olmalısınız." : "You must be a registered user to upload files.", true);
-            const button = document.querySelector('#file-upload-area button');
-            setButtonLoading(button, true);
-            try {
-                const groupId = document.getElementById('group-select-files').value;
-                const description = document.getElementById('file-description').value.trim();
-                const uploadType = document.querySelector('input[name="uploadType"]:checked').value;
-                if (!groupId) { throw new Error(currentLanguage === 'tr' ? "Lütfen bir grup seçin." : "Please select a group."); }
-                let fileUrl = '', fileName = '', mimeType = '';
-                if (uploadType === 'url') {
-                    fileUrl = document.getElementById('url-input').value.trim();
-                    if (!fileUrl.startsWith('http')) { fileUrl = 'https://' + fileUrl; }
-                    fileName = description || fileUrl; mimeType = 'link';
-                    if (!fileUrl || fileUrl === 'https://') throw new Error(currentLanguage === 'tr' ? "Lütfen geçerli bir link girin." : "Please enter a valid link.");
-                } else {
-                    const file = document.getElementById('file-input').files[0];
-                    if (!file) throw new Error(currentLanguage === 'tr' ? "Lütfen bir dosya seçin." : "Please select a file.");
-                    const storageRef = ref(storage, `artifacts/${projectId}/group_files/${groupId}/${Date.now()}-${file.name}`);
-                    await uploadBytes(storageRef, file);
-                    fileUrl = await getDownloadURL(storageRef);
-                    fileName = file.name; mimeType = file.type;
-                }
-                const docRef = doc(collection(db, `artifacts/${projectId}/public/data/files`));
-                await setDoc(docRef, { id: docRef.id, groupId: groupId, uploaderId: userId, uploaderName: userName, fileName: fileName, description: description, fileUrl: fileUrl, mimeType: mimeType, uploadedAt: new Date().toISOString() });
-                showMessage(currentLanguage === 'tr' ? "Dosya/Link başarıyla paylaşıldı!" : "File/Link shared successfully!", false);
-                document.getElementById('file-description').value = ''; document.getElementById('url-input').value = ''; document.getElementById('file-input').value = '';
-            } catch (error) { console.error("Dosya yükleme hatası:", error); showMessage(`${currentLanguage === 'tr' ? 'Dosya yüklenirken hata oluştu' : 'Error uploading file'}: ${error.message}`, true); } 
-            finally { setButtonLoading(button, false); }
-        };
-        
-        window.deleteFile = async (fileId, fileType, fileUrl) => {
-            if (isGuest || !db) return showMessage(currentLanguage === 'tr' ? "Bu özellik için kayıtlı kullanıcı olmalısınız." : "You must be a registered user for this feature.", true);
-            const confirmMsg = currentLanguage === 'tr' ? "Bu dosyayı kalıcı olarak silmek istediğinizden emin misiniz?" : "Are you sure you want to permanently delete this file?";
-            if (!confirm(confirmMsg)) return;
-            try {
-                await deleteDoc(doc(db, `artifacts/${projectId}/public/data/files`, fileId));
-                if (fileType !== 'link' && fileUrl) {
-                    try {
-                       const storageRef = ref(storage, fileUrl);
-                       await deleteObject(storageRef);
-                    } catch (storageError){
-                       if(storageError.code !== 'storage/object-not-found'){
-                          console.warn("Storage'dan silme hatası (dosya zaten silinmiş olabilir):", storageError);
-                       }
-                    }
-                }
-                showMessage(currentLanguage === 'tr' ? "Dosya başarıyla silindi." : "File deleted successfully.", false);
-            } catch (error) { console.error("Dosya silme hatası:", error); showMessage(currentLanguage === 'tr' ? "Dosya silinirken bir hata oluştu." : "An error occurred while deleting the file.", true); }
-        };
-        
-        window.changeTab = (tabName) => { 
-            playClickSound(400, 0.07);
+        window.changeTab = (tabName) => {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('tab-active'));
             document.getElementById(`${tabName}-view`).classList.remove('hidden');
             document.getElementById(`tab-${tabName}`).classList.add('tab-active');
-            if (tabName === 'groups' && userMap) {
-                 setTimeout(() => {
-                    try {
-                        userMap.invalidateSize();
-                        if (mapMarkers.length > 0) {
-                            const bounds = window.L.featureGroup(mapMarkers).getBounds();
-                            if (bounds.isValid()) { userMap.fitBounds(bounds, { padding: [20, 20] }); }
-                        } else { userMap.setView([30, 20], 3); }
-                    } catch (e) { console.warn("Harita yeniden boyutlandırma hatası:", e); }
-                }, 100); 
+            
+            // DÜZELTME: Harita sadece görünür olduğunda ve
+            // başlatıldığında yeniden boyutlandırılır.
+            if (tabName === 'groups') {
+                if (!isMapInitialized) {
+                    initializeMap();
+                } else {
+                    // Harita zaten varsa, boyutunu tazele
+                    setTimeout(() => { if (userMap) userMap.invalidateSize(); }, 100);
+                }
             }
         }
-        
-        window.onload = () => {
-             autoDetectLanguage(); 
-             if (!localStorage.getItem('user_name') || !localStorage.getItem('user_school')) {
-                 authModalEl.classList.remove('hidden');
-             } else { initializeFirebase(); }
-             setupDragAndDrop();
+
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig); 
+                db = getFirestore(app);
+                auth = getAuth(app);
+                storage = getStorage(app);
+                
+                onAuthStateChanged(auth, (user) => {
+                    if (user && user.uid !== userId) {
+                        userId = user.uid;
+                        setupRealtimeListeners();
+                        getUserLocationAndMetadata();
+                    }
+                });
+                if (!auth.currentUser) await signInAnonymously(auth);
+
+            } catch (error) { console.error("Firebase Hatası:", error); }
+        }
+
+        // GİRİŞ EKRANI FONKSİYONLARI
+        window.registerUser = () => {
+            const name = document.getElementById('user-name-input').value.trim();
+            const school = document.getElementById('user-school-input').value.trim();
+            if (!name || !school) return showMessage("Ad ve okul alanları zorunludur.", true);
+            
+            localStorage.setItem('user_name', name);
+            localStorage.setItem('user_school', school);
+            localStorage.setItem('user_email', document.getElementById('user-email-input').value.trim());
+            
+            isGuest = false;
+            document.getElementById('auth-modal').classList.add('hidden');
+            if (!auth.currentUser) initializeFirebase();
+            else getUserLocationAndMetadata();
         };
 
-        function renderStatusUpdateUI(groupId, currentStatus, isOwner) {
-            if (!isOwner) return '';
-            const statuses = ["Başlangıç", "Tasarım", "Test", "Uygulama", "Sonuç"];
-            const statusTranslations = {
-                "Başlangıç": currentLanguage === 'tr' ? "Başlangıç" : "Initial",
-                "Tasarım": currentLanguage === 'tr' ? "Tasarım" : "Design",
-                "Test": currentLanguage === 'tr' ? "Test" : "Test",
-                "Uygulama": currentLanguage === 'tr' ? "Uygulama" : "Implementation",
-                "Sonuç": currentLanguage === 'tr' ? "Sonuç" : "Result"
-            };
-            const options = statuses.map(status => `<option value="${status}" ${currentStatus === status ? 'selected' : ''}>${statusTranslations[status]}</option>`).join('');
-            return `<div class="mt-3 p-3 border-t bg-gray-50 rounded-lg"><label class="block text-xs font-semibold text-gray-700 mb-1">${currentLanguage === 'tr' ? 'Grup Lideri: Proje Aşamasını Güncelle' : 'Group Leader: Update Project Phase'}</label><div class="flex space-x-2"><select id="status-select-${groupId}" class="w-2/3 p-1 border rounded-lg text-xs">${options}</select><button onclick="updateGroupStatus('${groupId}')" class="w-1/3 bg-orange-500 text-white py-1 rounded-lg font-semibold hover:bg-orange-600 text-xs transition">${currentLanguage === 'tr' ? 'Güncelle' : 'Update'}</button></div></div>`;
-        }
-        
-        function updateGroupSelectors(groups) {
-            const selects = ['group-select-files', 'group-select-panel', 'group-select-lab'];
-            const defaultOption = currentLanguage === 'tr' ? '-- Grup Seçin --' : '-- Select Group --';
-            const optionsHTML = `<option value="">${defaultOption}</option>` + groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-            selects.forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.innerHTML = optionsHTML;
-            });
-            document.getElementById('group-select-files').onchange = (e) => displayGroupFiles(e.target.value);
-            document.getElementById('group-select-panel').onchange = (e) => {
-                document.getElementById('panel-editor-area').classList.toggle('hidden', !e.target.value);
-                if(e.target.value) loadPanelForGroup(e.target.value); // Panoyu yüklemeyi dene
-            };
-            document.getElementById('group-select-lab').onchange = (e) => {
-                 document.getElementById('lab-input-area').classList.toggle('hidden', !e.target.value);
-                 if(e.target.value) listenToLabData(e.target.value); // LAB verisini dinle
-            };
-        }
-
-        // Modül sekmesi için grup seçiciyi GÜNCELLE (Tüm grupları göstermeli)
-        function updateKitSelectors(groups) {
-            const kitSelect = document.getElementById('group-select-kit');
-            if(kitSelect) {
-                const defaultOption = currentLanguage === 'tr' ? '-- Kit İçin Grup Seç --' : '-- Select Group for Kit --';
-                kitSelect.innerHTML = `<option value="">${defaultOption}</option>` + groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
-                // DEĞİŞTİ: onchange eklendi
-                kitSelect.onchange = (e) => listenToSavedKits(e.target.value);
-            }
-        }
-
-        function displayGroupFiles(groupId) {
-            document.getElementById('file-upload-area').classList.toggle('hidden', !groupId);
-            const fileListContainer = document.getElementById('group-files-list');
-            if (filesListener) {
-                filesListener(); 
-                filesListener = null;
-            }
-            if (!groupId) {
-                fileListContainer.innerHTML = `<h3 class="text-xl font-bold text-gray-800 border-b pb-2" data-i18n="selected_group_files">${translations[currentLanguage].selected_group_files}</h3><p id="no-files-message" class="text-gray-500 text-center py-8" data-i18n="no_files_message">${translations[currentLanguage].no_files_message}</p>`;
-                currentFiles = []; // Listeyi temizle
-                return;
-            }
-            const q = query(collection(db, `artifacts/${projectId}/public/data/files`), where("groupId", "==", groupId));
-            filesListener = onSnapshot(q, (snapshot) => {
-                currentFiles = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderFiles(currentFiles);
-            }, (error) => {
-                console.error("Dosya dinleme hatası:", error);
-                fileListContainer.innerHTML = `<p class="text-red-500 text-center py-8">${currentLanguage === 'tr' ? 'Dosyalar yüklenirken bir hata oluştu.' : 'Error loading files.'}</p>`;
-            });
-        }
-        
-        window.toggleFileInput = (type) => {
-            document.getElementById('file-input').classList.toggle('hidden', type !== 'file');
-            document.getElementById('url-input').classList.toggle('hidden', type !== 'url');
+        window.loginUser = () => {
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_school');
+            localStorage.removeItem('user_email');
+            sessionStorage.setItem('isGuest', 'true');
+            isGuest = true;
+            document.getElementById('auth-modal').classList.add('hidden');
+            if (!auth.currentUser) initializeFirebase();
+            else getUserLocationAndMetadata();
         };
+        
+        function getUserLocationAndMetadata() {
+            if (isGuest) {
+                userName = "Misafir";
+                userSchool = "Görüntüleme";
+                updateUserMetadata(false); // Konum almadan güncelle
+            } else {
+                userName = localStorage.getItem('user_name');
+                userSchool = localStorage.getItem('user_school');
+                userEmail = localStorage.getItem('user_email');
 
-        function setupDragAndDrop() {
-            // Palette'deki mevcut modüllere dragstart ekle
-            document.querySelectorAll('#module-palette .module').forEach(module => {
-                module.addEventListener('dragstart', handleDragStart);
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(pos => {
+                        userLat = pos.coords.latitude.toFixed(2);
+                        userLon = pos.coords.longitude.toFixed(2);
+                        updateUserMetadata(true);
+                    }, () => {
+                        userLat = 41.01; userLon = 28.97; // İstanbul
+                        updateUserMetadata(true);
+                    });
+                } else {
+                    userLat = 41.01; userLon = 28.97;
+                    updateUserMetadata(true);
+                }
+            }
+        }
+
+        async function updateUserMetadata(hasLocation) {
+            document.getElementById('user-info').textContent = `${userName} (${userSchool})`;
+            if (hasLocation) {
+                document.getElementById('user-location').textContent = `Konum: ${userLat}, ${userLon}`;
+                if (!isGuest && userId) {
+                     await setDoc(doc(db, `artifacts/${firebaseConfig.projectId}/public/data/user_metadata`, userId), 
+                        { name: userName, school: userSchool, email: userEmail, lat: userLat, lon: userLon, lastLogin: new Date().toISOString() }, 
+                        { merge: true }
+                    );
+                }
+            }
+        }
+
+        function setupRealtimeListeners() {
+            const projectId = firebaseConfig.projectId;
+            onSnapshot(collection(db, `artifacts/${projectId}/public/data/groups`), 
+                (snapshot) => updateAllUsersAndGroups(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
+                (error) => console.error("Grup dinleme hatası:", error)
+            );
+            onSnapshot(collection(db, `artifacts/${projectId}/public/data/announcements`), 
+                (snapshot) => renderAnnouncements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
+                (error) => console.error("Duyuru dinleme hatası:", error)
+            );
+            onSnapshot(collection(db, `artifacts/${projectId}/public/data/panels`), 
+                (snapshot) => renderProjectGallery(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))),
+                (error) => console.error("Pano dinleme hatası:", error)
+            );
+        }
+
+        async function updateAllUsersAndGroups(groupsData) {
+            const userSnapshot = await getDocs(collection(db, `artifacts/${firebaseConfig.projectId}/public/data/user_metadata`));
+            allUserMetadata = userSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // DÜZELTME: groupMap harita için burada oluşturulur
+            groupMap = {};
+            groupsData.forEach(g => {
+                g.members.forEach(memberId => {
+                    if (!groupMap[memberId]) groupMap[memberId] = [];
+                    groupMap[memberId].push(g);
+                });
             });
             
+            userGroups = groupsData.filter(g => g.members && g.members.includes(userId));
+
+            renderAllUsers(); 
+            renderAllGroups(groupsData); 
+            renderUserMap(allUserMetadata); // Haritayı en son verilerle güncelle
+            updateGroupSelectors(userGroups);
+        }
+
+        function initializeMap() {
+            if (isMapInitialized || typeof L === 'undefined') return;
+            try {
+                userMap = L.map('user-map').setView([40, 35], 5);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(userMap);
+                isMapInitialized = true;
+                setTimeout(() => userMap.invalidateSize(), 100);
+                renderUserMap(allUserMetadata);
+            } catch (e) {
+                console.error("Harita başlatılamadı:", e);
+                isMapInitialized = false;
+            }
+        }
+
+        // DÜZELTME: Harita ikonları, puan ve renkler
+        function renderUserMap(users) {
+            if (!isMapInitialized) return;
+            mapMarkers.forEach(m => m.remove()); mapMarkers = [];
+            
+            users.forEach(user => {
+                if (user.lat && user.lon) {
+                    const userGroupsInfo = groupMap[user.id] || [];
+                    const isBlue = userGroupsInfo.some(g => g.economyFocus === 'Mavi');
+                    const isGreen = userGroupsInfo.some(g => g.economyFocus === 'Yeşil');
+                    
+                    let color = '#808080'; // Gri (grup yoksa)
+                    if (isBlue && isGreen) color = '#ffb300'; // Turuncu (ikisi de)
+                    else if (isBlue) color = '#00838f'; // Mavi
+                    else if (isGreen) color = '#4caf50'; // Yeşil
+                    
+                    const markerHtmlStyles = `background-color: ${color}; width: 1.5rem; height: 1.5rem; display: block; left: -0.75rem; top: -0.75rem; position: relative; border-radius: 1.5rem 1.5rem 0; transform: rotate(45deg); border: 2px solid #FFF; box-shadow: 0 0 5px rgba(0,0,0,0.5);`;
+                    const customIcon = L.divIcon({ className: "custom-div-icon", html: `<div style="${markerHtmlStyles}"></div>`, iconSize: [24, 24], iconAnchor: [12, 24] });
+                    
+                    const userScore = user.puan || 0; // Puan (varsayılan 0)
+                    const popupContent = `<div class="font-bold">${user.name} (${user.school})</div><div class="text-sm font-semibold text-accent-blue">Puan: ${userScore}</div>`;
+                    
+                    const marker = L.marker([user.lat, user.lon], { icon: customIcon }).bindPopup(popupContent).addTo(userMap);
+                    mapMarkers.push(marker);
+                }
+            });
+        }
+        
+        // DÜZELTME: Aktif Kullanıcılar listesi
+        function renderAllUsers() {
+            const userListEl = document.getElementById('all-users-list');
+            if (!userListEl) return;
+            userListEl.innerHTML = '';
+            
+            const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+            allUserMetadata.sort((a, b) => new Date(b.lastLogin || 0) - new Date(a.lastLogin || 0));
+            
+            allUserMetadata.forEach(user => {
+                const isCurrentUser = user.id === userId;
+                const dateStr = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Bilinmiyor';
+                const isActive = user.lastLogin && new Date(user.lastLogin) > threeDaysAgo;
+                
+                let bgColor = 'bg-gray-50 border-gray-200';
+                let textColor = 'text-gray-800';
+                let statusText = '';
+                
+                if (isCurrentUser) {
+                    bgColor = 'bg-blue-100 border-blue-400';
+                    textColor = 'text-blue-800';
+                    statusText = `<span class="text-xs font-normal text-red-500">(Siz)</span>`;
+                } else if (isActive) {
+                    bgColor = 'bg-green-100 border-green-400';
+                    textColor = 'text-green-800';
+                    statusText = `<span class="text-xs font-bold text-green-600 ml-1">(AKTİF)</span>`;
+                }
+
+                const userCard = document.createElement('div');
+                userCard.className = `p-2 rounded-lg border ${bgColor}`;
+                userCard.innerHTML = `<p class="font-semibold text-sm ${textColor}">${user.name} ${statusText}</p><p class="text-xs text-gray-600">${user.school} | Son Görülme: ${dateStr}</p>`;
+                userListEl.appendChild(userCard);
+            });
+        }
+
+        function renderAllGroups(groups) {
+            const listEl = document.getElementById('all-groups-list');
+            listEl.innerHTML = '';
+            const userLookup = Object.fromEntries(allUserMetadata.map(u => [u.id, u.name]));
+
+            groups.forEach(group => {
+                const members = group.members || [];
+                const isMember = members.includes(userId);
+                const isOwner = group.ownerId === userId;
+                
+                const card = document.createElement('div');
+                card.className = `bg-white p-4 rounded-xl shadow-md space-y-2 border-l-4 ${group.economyFocus === 'Yeşil' ? 'border-green-500' : 'border-blue-500'}`;
+                card.innerHTML = `
+                    <h3 class="font-bold text-lg">${group.name}</h3>
+                    <p class="text-sm"><b>Odak:</b> ${group.economyFocus} Ekonomi</p>
+                    <p class="text-sm"><b>Aşama:</b> ${group.stemCycleStatus}</p>
+                    <div class="text-sm"><b>Üyeler (${members.length}):</b><ul class="list-disc pl-5">${members.map(id => `<li>${userLookup[id] || '...'}</li>`).join('')}</ul></div>
+                    <div class="pt-2 border-t mt-2 flex space-x-4">
+                        ${!isGuest ? (isMember ? `<button onclick="leaveGroup('${group.id}')" class="text-red-600 font-semibold">Ayrıl</button>` : `<button onclick="joinGroup('${group.id}')" class="text-green-600 font-semibold">Katıl</button>`) : ''}
+                    </div>
+                    ${isOwner ? renderStatusUpdateUI(group.id, group.stemCycleStatus) : ''}
+                `;
+                listEl.appendChild(card);
+            });
+        }
+        
+        function renderStatusUpdateUI(groupId, currentStatus) {
+            const statuses = ["Başlangıç", "Tasarım", "Test", "Uygulama", "Sonuç"];
+            const options = statuses.map(s => `<option value="${s}" ${s === currentStatus ? 'selected' : ''}>${s}</option>`).join('');
+            return `<div class="mt-2 pt-2 border-t"><label class="text-xs font-bold">Aşamayı Güncelle:</label><div class="flex gap-2 mt-1"><select id="status-select-${groupId}" class="p-1 border rounded w-full">${options}</select><button onclick="updateGroupStatus('${groupId}')" class="px-3 bg-orange-500 text-white rounded">OK</button></div></div>`;
+        }
+
+        window.createGroup = async () => { if(isGuest) return showMessage("Grup oluşturmak için kayıt olmalısınız.", true); /* ... */ };
+        window.joinGroup = async (groupId) => { if(isGuest) return showMessage("Gruba katılmak için kayıt olmalısınız.", true); /* ... */ };
+        window.leaveGroup = async (groupId) => { /* ... */ };
+        window.updateGroupStatus = async (groupId) => { /* ... */ };
+        window.uploadFile = async () => { if(isGuest) return showMessage("Dosya yüklemek için kayıt olmalısınız.", true); /* ... */ };
+        window.deleteFile = async (id, url) => { /* ... */ };
+        function renderFiles(files) { /* ... */ };
+        window.publishAnnouncement = async () => { if(isGuest) return showMessage("Duyuru için kayıt olmalısınız.", true); /* ... */ };
+        window.deleteAnnouncement = async (id) => { /* ... */ };
+        function renderAnnouncements(announcements) { /* ... */ };
+        async function loadPanelForGroup(groupId) { /* ... */ };
+        window.saveProjectPanel = async () => { if(isGuest) return showMessage("Pano için kayıt olmalısınız.", true); /* ... */ };
+        function renderProjectGallery(panels) { /* ... */ };
+        function listenToLabData(groupId) { /* ... */ };
+        window.calculateBlueContribution = async () => { if(isGuest) return showMessage("Veri girmek için kayıt olmalısınız.", true); /* ... */ };
+        function renderContributionResults(records) { /* ... */ };
+        window.deleteLabRecord = async (recordId) => { /* ... */ };
+        
+        function updateGroupSelectors(groups) {
+            const optionsHTML = `<option value="">-- Grup Seçin --</option>` + groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+            const selects = {
+                'group-select-files': (gid) => { document.getElementById('file-upload-area').classList.toggle('hidden', !gid || isGuest); displayGroupFiles(gid); },
+                'group-select-panel': (gid) => { document.getElementById('panel-editor-area').classList.toggle('hidden', !gid || isGuest); loadPanelForGroup(gid); },
+                'group-select-lab': (gid) => { document.getElementById('lab-input-area').classList.toggle('hidden', !gid || isGuest); listenToLabData(gid); },
+            };
+            for (const id in selects) {
+                const el = document.getElementById(id);
+                if (el) { el.innerHTML = optionsHTML; el.onchange = (e) => selects[id](e.target.value); }
+            }
+        }
+        
+        function displayGroupFiles(groupId) {
+            if(filesListener) filesListener();
+            if(!groupId) { document.getElementById('group-files-list').innerHTML = ''; return; }
+            const q = query(collection(db, `artifacts/${firebaseConfig.projectId}/public/data/files`), where("groupId", "==", groupId));
+            filesListener = onSnapshot(q, (snapshot) => renderFiles(snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}))));
+        }
+
+        // MODÜL JS FONKSİYONLARI
+        function setupDragAndDrop() {
             const canvas = document.getElementById('kit-canvas');
+            const palette = document.getElementById('module-palette');
+            if (!canvas || !palette) return; 
+
+            palette.addEventListener('dragstart', (e) => {
+                if (e.target.classList.contains('module')) {
+                    e.dataTransfer.setData('text/plain', JSON.stringify({ name: e.target.dataset.name, text: e.target.textContent }));
+                }
+            });
             canvas.addEventListener('dragover', (e) => e.preventDefault());
             canvas.addEventListener('drop', (e) => {
                 e.preventDefault();
-                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
-                const placeholder = canvas.querySelector('p');
-                if(placeholder) placeholder.style.display = 'none';
-                
-                const newModule = document.createElement('div');
-                newModule.className = 'module absolute bg-white text-gray-700 p-2 rounded-lg shadow-lg text-xs font-semibold';
-                newModule.textContent = data.text;
-                newModule.dataset.name = data.name;
-                newModule.dataset.type = data.type;
-                
-                const rect = canvas.getBoundingClientRect();
-                // Düşme pozisyonunu canvas'a göre ayarla
-                let x = e.clientX - rect.left;
-                let y = e.clientY - rect.top;
-                
-                // Modülün (tahmini) yarım genişlik/yüksekliğini çıkararak ortala
-                x -= 40; 
-                y -= 15;
-                
-                // Sınırların dışına taşmasını engelle
-                x = Math.max(0, Math.min(x, rect.width - 80)); // 80px modül genişliği varsayımı
-                y = Math.max(0, Math.min(y, rect.height - 30)); // 30px modül yüksekliği varsayımı
-                
-                newModule.style.position = 'absolute'; // Pozisyonlama için gerekli
-                newModule.style.left = `${x}px`;
-                newModule.style.top = `${y}px`;
-                
-                canvas.appendChild(newModule);
-                updateModuleOutput();
-            });
-        }
-        
-        function handleDragStart(e) {
-             e.dataTransfer.setData('text/plain', JSON.stringify({ 
-                name: e.target.dataset.name, 
-                type: e.target.dataset.type, 
-                text: e.target.textContent 
-            }));
-        }
-
-        window.createCustomModule = async () => {
-            if (isGuest) return showMessage(currentLanguage === 'tr' ? "Bu özellik için kayıtlı kullanıcı olmalısınız." : "You must be a registered user for this feature.", true);
-            const nameInput = document.getElementById('custom-module-name');
-            const typeSelect = document.getElementById('custom-module-type');
-            const name = nameInput.value.trim(), type = typeSelect.value;
-            if (!name) return showMessage(currentLanguage === 'tr' ? "Lütfen modül adını girin." : "Please enter a module name.", true);
-            try {
-                const docRef = doc(collection(db, `artifacts/${projectId}/public/data/custom_modules`));
-                await setDoc(docRef, { id: docRef.id, name, type, createdBy: userId });
-                showMessage(currentLanguage === 'tr' ? "Özel modül başarıyla eklendi!" : "Custom module added successfully!", false);
-                nameInput.value = '';
-            } catch (error) { console.error("Özel modül oluşturma hatası:", error); showMessage(currentLanguage === 'tr' ? "Modül oluşturulamadı." : "Failed to create module.", true); }
-        };
-
-        function renderCustomModules(modules) {
-            const palette = document.getElementById('module-palette');
-            // Sadece özel modülleri temizle
-            document.querySelectorAll('.custom-module').forEach(el => el.remove());
-            modules.forEach(module => {
-                const moduleEl = document.createElement('div');
-                moduleEl.className = 'module custom-module bg-blue-100 text-blue-800 p-2 rounded-lg shadow-md text-xs font-semibold border border-blue-300';
-                moduleEl.draggable = true;
-                moduleEl.dataset.type = module.type;
-                moduleEl.dataset.name = module.name;
-                moduleEl.textContent = module.name;
-                moduleEl.addEventListener('dragstart', handleDragStart); // Yeni eklenenlere de event listener ata
-                palette.appendChild(moduleEl);
-            });
-            // setupDragAndDrop() fonksiyonunu tekrar çağırmaya gerek yok, sadece yeni elementlere listener ekledik.
-        }
-
-        window.clearKitCanvas = (force = false) => {
-            const confirmMsg = currentLanguage === 'tr' ? 'Kanvası temizlemek istediğinizden emin misiniz?' : 'Are you sure you want to clear the canvas?';
-            if (force || confirm(confirmMsg)) {
-                const placeholderText = translations[currentLanguage].drag_modules_here;
-                document.getElementById('kit-canvas').innerHTML = `<p class="text-center text-gray-500 pt-16">${placeholderText}</p>`;
-                updateModuleOutput();
-            }
-        };
-
-        function updateModuleOutput() {
-            const modulesOnCanvas = document.querySelectorAll('#kit-canvas .module');
-            const outputEl = document.getElementById('module-output');
-            if (modulesOnCanvas.length > 0) {
-                const kitText = currentLanguage === 'tr' ? '**İnşa Edilen Kit:**' : '**Kit Built:**';
-                outputEl.innerText = `${kitText} ${Array.from(modulesOnCanvas).map(m => m.textContent).join(' -> ')}`;
-                outputEl.classList.remove('hidden');
-            } else { outputEl.classList.add('hidden'); }
-        }
-        
-        window.updateGroupStatus = async (groupId) => {
-             if (isGuest || !db) return;
-            const status = document.getElementById(`status-select-${groupId}`).value;
-            try {
-                const groupRef = doc(db, `artifacts/${projectId}/public/data/groups`, groupId);
-                await updateDoc(groupRef, { stemCycleStatus: status });
-                showMessage(currentLanguage === 'tr' ? "Grup aşaması başarıyla güncellendi." : "Group phase updated successfully.", false);
-            } catch (error) { console.error("Grup durumu güncellenemedi:", error); showMessage(currentLanguage === 'tr' ? "Durum güncellenirken hata oluştu." : "Error updating status.", true); }
-        };
-
-        window.renderFiles = (files) => { // Global scope'a taşı
-            const listEl = document.getElementById('group-files-list');
-            const title = translations[currentLanguage].selected_group_files;
-            listEl.innerHTML = `<h3 class="text-xl font-bold text-gray-800 border-b pb-2">${title}</h3>`;
-            if (files.length === 0) {
-                const noFilesMsg = currentLanguage === 'tr' ? "Bu grup için henüz paylaşılmış dosya veya link yok." : "No files or links shared for this group yet.";
-                listEl.innerHTML += `<p class="text-gray-500 text-center py-8">${noFilesMsg}</p>`;
-                return;
-            }
-            files.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
-            files.forEach(file => {
-                const dateStr = new Date(file.uploadedAt).toLocaleString(currentLanguage === 'tr' ? 'tr-TR' : 'en-US');
-                const isLink = file.mimeType === 'link';
-                const fileIcon = isLink ? 
-                    `<svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>` : 
-                    `<svg class="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>`;
-                const deleteBtn = file.uploaderId === userId ? `<button onclick="deleteFile('${file.id}', '${isLink ? 'link' : 'file'}', '${file.fileUrl}')" class="text-red-500 hover:text-red-700 text-sm">${currentLanguage === 'tr' ? 'Sil' : 'Delete'}</button>` : '';
-                const descriptionText = file.description || (currentLanguage === 'tr' ? 'Açıklama yok' : 'No description');
-                const uploaderText = currentLanguage === 'tr' ? 'Yükleyen' : 'Uploaded by';
-
-                const card = document.createElement('div');
-                card.className = "bg-white p-3 rounded-lg shadow-sm flex items-center justify-between";
-                card.innerHTML = `
-                    <div class="flex items-center space-x-3">
-                        ${fileIcon}
-                        <div>
-                            <a href="${file.fileUrl}" target="_blank" rel="noopener noreferrer" class="font-semibold text-gray-800 hover:text-accent-blue">${file.fileName}</a>
-                            <p class="text-xs text-gray-600">${descriptionText}</p>
-                            <p class="text-xs text-gray-400 mt-1">${uploaderText}: ${file.uploaderName} - ${dateStr}</p>
-                        </div>
-                    </div>
-                    <div>${deleteBtn}</div>
-                `;
-                listEl.appendChild(card);
-            });
-        };
-
-        window.publishAnnouncement = async () => {
-            if (isGuest) return showMessage(currentLanguage === 'tr' ? "Duyuru yayınlamak için kayıtlı olmalısınız." : "You must be registered to publish announcements.", true);
-            const title = document.getElementById('announcement-title').value.trim();
-            const content = document.getElementById('announcement-content').value.trim();
-            if (!title || !content) return showMessage(currentLanguage === 'tr' ? "Lütfen başlık ve içerik girin." : "Please enter a title and content.", true);
-
-            try {
-                const docRef = doc(collection(db, `artifacts/${projectId}/public/data/announcements`));
-                await setDoc(docRef, {
-                    id: docRef.id,
-                    title: title,
-                    content: content,
-                    publisherId: userId,
-                    publisherName: userName,
-                    publishedAt: new Date().toISOString()
-                });
-                showMessage(currentLanguage === 'tr' ? "Duyuru başarıyla yayınlandı!" : "Announcement published successfully!", false);
-                document.getElementById('announcement-title').value = '';
-                document.getElementById('announcement-content').value = '';
-            } catch (error) {
-                console.error("Duyuru yayınlama hatası:", error);
-                showMessage(currentLanguage === 'tr' ? "Duyuru yayınlanırken bir hata oluştu." : "Error publishing announcement.", true);
-            }
-        };
-
-        window.renderAnnouncements = (announcements) => { // Global scope'a taşı
-            const listEl = document.getElementById('announcements-list');
-            const title = translations[currentLanguage].all_announcements_title;
-            listEl.innerHTML = `<h3 class="text-xl font-bold text-gray-800 border-b pb-2">${title}</h3>`;
-            if (announcements.length === 0) {
-                const noAnnouncementsMsg = currentLanguage === 'tr' ? "Henüz yayınlanmış bir duyuru yok." : "No announcements published yet.";
-                listEl.innerHTML += `<p class="text-gray-500 text-center py-8">${noAnnouncementsMsg}</p>`;
-                return;
-            }
-            announcements.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
-            announcements.forEach(ann => {
-                const dateStr = new Date(ann.publishedAt).toLocaleString(currentLanguage === 'tr' ? 'tr-TR' : 'en-US');
-                const deleteBtn = ann.publisherId === userId ? `<button onclick="deleteAnnouncement('${ann.id}', '${ann.title}')" class="text-red-500 hover:text-red-700 text-sm font-medium">${currentLanguage === 'tr' ? 'Sil' : 'Delete'}</button>` : '';
-                const publisherText = currentLanguage === 'tr' ? 'Yayınlayan' : 'Published by';
-                const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-lg shadow-sm announcement-card";
-                card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-bold text-lg text-gray-800">${ann.title}</h4>
-                            <p class="text-xs text-gray-500">${publisherText}: ${ann.publisherName} - ${dateStr}</p>
-                        </div>
-                        ${deleteBtn}
-                    </div>
-                    <p class="text-gray-700 mt-2">${ann.content.replace(/\n/g, '<br>')}</p>
-                `;
-                listEl.appendChild(card);
-            });
-        };
-
-        window.deleteAnnouncement = async (announcementId, title) => {
-            if(isGuest) return;
-            const confirmMsg = `'${title}' ${currentLanguage === 'tr' ? 'başlıklı duyuruyu silmek istediğinizden emin misiniz?' : 'Are you sure you want to delete this announcement?'}`;
-            if(confirm(confirmMsg)){
                 try {
-                    await deleteDoc(doc(db, `artifacts/${projectId}/public/data/announcements`, announcementId));
-                    showMessage(currentLanguage === 'tr' ? "Duyuru başarıyla silindi." : "Announcement deleted successfully.", false);
-                } catch(error) {
-                    console.error("Duyuru silme hatası: ", error);
-                    showMessage(currentLanguage === 'tr' ? "Duyuru silinirken bir hata oluştu." : "Error deleting announcement.", true);
-                }
-            }
-        };
-        
-        // --- AKTİFLEŞTİRİLEN FONKSİYONLAR ---
-
-        // Kitleri Dinle (YENİ)
-        window.listenToSavedKits = (groupId) => {
-            const selectEl = document.getElementById('saved-kits-select');
-            if (kitDataListener) kitDataListener(); // Önceki dinleyiciyi temizle
-            
-            if (!groupId) {
-                currentKits = [];
-                renderSavedKitsDropdown(currentKits); // Dropdown'ı temizle
-                return;
-            }
-            
-            const q = query(collection(db, `artifacts/${projectId}/public/data/kits`), where("groupId", "==", groupId));
-            kitDataListener = onSnapshot(q, (snapshot) => {
-                currentKits = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderSavedKitsDropdown(currentKits);
-            }, (error) => {
-                console.error("Kayıtlı kitleri dinleme hatası:", error);
-                showMessage(currentLanguage === 'tr' ? "Kayıtlı kitler yüklenemedi." : "Could not load saved kits.", true);
-            });
-        };
-        
-        // Kit Dropdown'ını Doldur (YENİ)
-        window.renderSavedKitsDropdown = (kits) => {
-            const selectEl = document.getElementById('saved-kits-select');
-            const defaultOption = translations[currentLanguage].load_saved_kits_select;
-            selectEl.innerHTML = `<option value="">${defaultOption}</option>`;
-            kits.sort((a,b) => (a.kitName || "").localeCompare(b.kitName || ""));
-            kits.forEach(kit => {
-                selectEl.innerHTML += `<option value="${kit.id}">${kit.kitName}</option>`;
-            });
-        };
-
-        // Kiti Kaydet (AKTİFLEŞTİRİLDİ)
-        window.saveKitCanvas = async () => {
-            if (isGuest) return showMessage(currentLanguage === 'tr' ? "Bu özellik için kayıtlı kullanıcı olmalısınız." : "You must be a registered user for this feature.", true);
-            
-            const groupId = document.getElementById('group-select-kit').value;
-            const kitName = document.getElementById('kit-name-input').value.trim();
-            const modulesOnCanvas = document.querySelectorAll('#kit-canvas .module');
-
-            if (!groupId) return showMessage(currentLanguage === 'tr' ? "Lütfen kiti kaydetmek için bir grup seçin." : "Please select a group to save the kit to.", true);
-            if (!kitName) return showMessage(currentLanguage === 'tr' ? "Lütfen kitinize bir ad verin." : "Please give your kit a name.", true);
-            if (modulesOnCanvas.length === 0) return showMessage(currentLanguage === 'tr' ? "Kaydedilecek bir modül yok. Lütfen tuvale modül ekleyin." : "There are no modules to save. Please add modules to the canvas.", true);
-
-            const button = document.querySelector('button[onclick="saveKitCanvas()"]');
-            setButtonLoading(button, true);
-
-            try {
-                // Modül verilerini topla
-                const modulesData = Array.from(modulesOnCanvas).map(m => ({
-                    name: m.dataset.name,
-                    type: m.dataset.type,
-                    text: m.textContent,
-                    left: m.style.left,
-                    top: m.style.top
-                }));
-
-                // Firestore'a kaydet
-                await addDoc(collection(db, `artifacts/${projectId}/public/data/kits`), {
-                    groupId: groupId,
-                    kitName: kitName,
-                    modules: modulesData,
-                    savedBy: userId,
-                    savedAt: new Date().toISOString()
-                });
-                
-                showMessage(currentLanguage === 'tr' ? "Kit başarıyla kaydedildi!" : "Kit saved successfully!", false);
-                document.getElementById('kit-name-input').value = ''; // Giriş alanını temizle
-
-            } catch (error) {
-                console.error("Kit kaydetme hatası:", error);
-                showMessage(currentLanguage === 'tr' ? "Kit kaydedilirken bir hata oluştu." : "An error occurred while saving the kit.", true);
-            } finally {
-                setButtonLoading(button, false);
-            }
-        };
-
-        // Kiti Yükle (AKTİFLEŞTİRİLDİ)
-        window.loadSavedKit = async () => {
-            const kitId = document.getElementById('saved-kits-select').value;
-            if (!kitId) return showMessage(currentLanguage === 'tr' ? "Lütfen yüklenecek bir kit seçin." : "Please select a kit to load.", true);
-            
-            const button = document.querySelector('button[onclick="loadSavedKit()"]');
-            setButtonLoading(button, true);
-            
-            try {
-                const kitRef = doc(db, `artifacts/${projectId}/public/data/kits`, kitId);
-                const docSnap = await getDoc(kitRef);
-
-                if (docSnap.exists()) {
-                    const kitData = docSnap.data();
-                    
-                    // Kanvası onaysız temizle
-                    clearKitCanvas(true); 
-                    
-                    const canvas = document.getElementById('kit-canvas');
+                    const data = JSON.parse(e.dataTransfer.getData('text/plain'));
                     const placeholder = canvas.querySelector('p');
                     if(placeholder) placeholder.style.display = 'none';
+                    const newModule = document.createElement('div');
+                    newModule.className = 'module absolute bg-white text-gray-700 p-2 rounded-lg shadow-lg text-xs font-semibold';
+                    newModule.textContent = data.text;
+                    newModule.dataset.name = data.name;
+                    const rect = canvas.getBoundingClientRect();
+                    let x = e.clientX - rect.left - 40, y = e.clientY - rect.top - 15;
+                    x = Math.max(0, Math.min(x, rect.width - 80)); 
+                    y = Math.max(0, Math.min(y, rect.height - 30));
+                    newModule.style.left = `${x}px`;
+                    newModule.style.top = `${y}px`;
+                    canvas.appendChild(newModule);
+                } catch (err) { console.error("Drop hatası:", err); }
+            });
+        }
 
-                    // Modülleri yeniden oluştur
-                    kitData.modules.forEach(module => {
-                        const newModule = document.createElement('div');
-                        newModule.className = 'module absolute bg-white text-gray-700 p-2 rounded-lg shadow-lg text-xs font-semibold';
-                        newModule.textContent = module.text;
-                        newModule.dataset.name = module.name;
-                        newModule.dataset.type = module.type;
-                        newModule.style.position = 'absolute';
-                        newModule.style.left = module.left;
-                        newModule.style.top = module.top;
-                        canvas.appendChild(newModule);
-                    });
-
-                    updateModuleOutput();
-                    showMessage(currentLanguage === 'tr' ? "Kit başarıyla yüklendi!" : "Kit loaded successfully!", false);
-                    document.getElementById('kit-name-input').value = kitData.kitName; // Kayıtlı adı input'a yaz
-
-                } else {
-                    throw new Error(currentLanguage === 'tr' ? "Kit bulunamadı." : "Kit not found.");
-                }
-            } catch (error) {
-                console.error("Kit yükleme hatası:", error);
-                showMessage(currentLanguage === 'tr' ? "Kit yüklenirken bir hata oluştu." : "An error occurred while loading the kit.", true);
-            } finally {
-                setButtonLoading(button, false);
+        window.clearKitCanvas = () => {
+            const canvas = document.getElementById('kit-canvas');
+            if (canvas && confirm('Kanvası temizlemek istediğinizden emin misiniz?')) {
+                canvas.innerHTML = `<p class="text-center text-gray-500 pt-16" data-i18n="drag_modules_here">Modülleri Buraya Sürükleyin</p>`;
             }
+        }
+
+        // BAŞLANGIÇ
+        window.onload = () => {
+            if (localStorage.getItem('user_name')) {
+                isGuest = false;
+                initializeFirebase();
+            } else if (sessionStorage.getItem('isGuest')) {
+                isGuest = true;
+                initializeFirebase();
+            } else {
+                 document.getElementById('auth-modal').classList.remove('hidden');
+            }
+            setupDragAndDrop(); // Modül sekmesi için JS'yi yükle
         };
-        
-        // --- HENÜZ AKTİF OLMAYAN YER TUTUCULAR ---
-        function loadPanelForGroup(groupId) { 
-            // console.log(`'${groupId}' için pano yükleniyor...`); 
-        };
-        window.saveProjectPanel = async () => { showMessage(currentLanguage === 'tr' ? "Bu özellik henüz aktif değil." : "This feature is not active yet."); };
-        function renderProjectGallery(panels) { 
-            const listEl = document.getElementById('project-gallery');
-            const title = translations[currentLanguage].innovation_gallery_title;
-            const loading = translations[currentLanguage].loading_boards;
-            listEl.innerHTML = `<h3 class="text-xl font-bold text-gray-800 border-b pb-2">${title}</h3><p class="text-gray-500 text-center py-8">${loading}</p>`;
-            // Gerçek render kodu buraya gelecek
-        };
-        window.calculateBlueContribution = async () => { showMessage(currentLanguage === 'tr' ? "Bu özellik henüz aktif değil." : "This feature is not active yet."); };
-        function renderContributionResults(records) { /* Henüz implemente edilmedi */ };
-        window.deleteLabRecord = async (recordId) => { showMessage(currentLanguage === 'tr' ? "Bu özellik henüz aktif değil." : "This feature is not active yet."); };
-        function listenToLabData(groupId) { 
-            // console.log(`'${groupId}' için LAB verisi dinleniyor...`);
-        };
-        
     </script>
 </body>
 </html>
-
-
-
 
 
